@@ -145,6 +145,8 @@
     function resetButtons() {
         runBtn.disabled = false;
         submitBtn.disabled = false;
+        runBtn.style.display = 'inline-block';
+        submitBtn.style.display = 'inline-block';
         stopBtn.style.display = 'none';
     }
 
@@ -163,8 +165,8 @@
         progressPercentage.innerHTML = '0%';
         progressBar.style.width = '0%';
 
-        runBtn.disabled = true;
-        submitBtn.disabled = true;
+        runBtn.style.display = 'none';
+        submitBtn.style.display = 'none';
         stopBtn.style.display = 'inline-block';
 
         abortController = new AbortController();
