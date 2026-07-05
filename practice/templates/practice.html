@@ -69,10 +69,20 @@
         <div class="control-bar">
             <button id="btn-run" class="btn btn-secondary">💻 Run Code</button>
             <button id="btn-submit" class="btn btn-primary">🚀 Submit Solution</button>
+            <button id="btn-stop" class="btn" style="background: var(--color-fail); color: #fff; border: none; display: none;">🛑 Stop Execution</button>
         </div>
 
         <!-- Dynamic Results Panel (hidden initially) -->
         <div id="results-panel" class="results-panel" style="display: none;">
+            <div id="progress-container" style="display: none; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 6px;">
+                    <span id="progress-text" style="font-weight: 500;">Running test case...</span>
+                    <span id="progress-percentage" style="color: var(--text-secondary);">0%</span>
+                </div>
+                <div style="height: 6px; background-color: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden;">
+                    <div id="progress-bar" style="height: 100%; width: 0%; background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%); border-radius: 3px; transition: width 0.1s ease;"></div>
+                </div>
+            </div>
             <div id="result-summary" class="result-header"></div>
             <div id="result-time" style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;"></div>
             <div class="testcase-list" id="testcases-container"></div>
@@ -105,86 +115,163 @@
 
     const runBtn = document.getElementById('btn-run');
     const submitBtn = document.getElementById('btn-submit');
+    const stopBtn = document.getElementById('btn-stop');
     const resultsPanel = document.getElementById('results-panel');
     const resultSummary = document.getElementById('result-summary');
     const resultTime = document.getElementById('result-time');
     const testcasesContainer = document.getElementById('testcases-container');
 
+    const progressContainer = document.getElementById('progress-container');
+    const progressText = document.getElementById('progress-text');
+    const progressPercentage = document.getElementById('progress-percentage');
+    const progressBar = document.getElementById('progress-bar');
+
+    let abortController = null;
+
     runBtn.addEventListener('click', () => executeCode("{% url 'practice:run_code' problem.id %}"));
     submitBtn.addEventListener('click', () => executeCode("{% url 'practice:submit_code' problem.id %}"));
+    stopBtn.addEventListener('click', () => {
+        if (abortController) {
+            abortController.abort();
+            abortController = null;
+            
+            resultSummary.className = 'result-header result-fail';
+            resultSummary.innerHTML = '🛑 Execution stopped by user.';
+            progressContainer.style.display = 'none';
+            resetButtons();
+        }
+    });
 
-    function executeCode(url) {
+    function resetButtons() {
+        runBtn.disabled = false;
+        submitBtn.disabled = false;
+        stopBtn.style.display = 'none';
+    }
+
+    async function executeCode(url) {
         if (!editor) return;
         const codeValue = editor.getValue();
         
-        // Show spinner / loading status
         resultSummary.className = 'result-header';
-        resultSummary.innerHTML = '⚡ Running test cases...';
+        resultSummary.innerHTML = '⚡ Preparing execution...';
         resultTime.innerHTML = '';
         testcasesContainer.innerHTML = '';
         resultsPanel.style.display = 'block';
+        
+        progressContainer.style.display = 'block';
+        progressText.innerHTML = 'Starting...';
+        progressPercentage.innerHTML = '0%';
+        progressBar.style.width = '0%';
 
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ code: codeValue })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'PASS') {
-                resultSummary.className = 'result-header result-success';
-                resultSummary.innerHTML = '🎉 Correct! All test cases passed.';
-            } else if (data.status === 'FAIL') {
-                resultSummary.className = 'result-header result-fail';
-                resultSummary.innerHTML = '❌ Incorrect. One or more test cases failed.';
-            } else {
-                resultSummary.className = 'result-header result-fail';
-                resultSummary.innerHTML = `⚠️ Error: ${data.message || 'Unknown error occurred.'}`;
-                if (data.traceback) {
-                    const pre = document.createElement('pre');
-                    pre.style.background = 'rgba(255,255,255,0.03)';
-                    pre.style.border = '1px solid var(--border-color)';
-                    pre.style.padding = '12px';
-                    pre.style.borderRadius = '8px';
-                    pre.style.overflowX = 'auto';
-                    pre.style.color = '#f43f5e';
-                    pre.style.fontFamily = 'var(--font-mono)';
-                    pre.style.fontSize = '0.85rem';
-                    pre.innerHTML = data.traceback;
-                    testcasesContainer.appendChild(pre);
+        runBtn.disabled = true;
+        submitBtn.disabled = true;
+        stopBtn.style.display = 'inline-block';
+
+        abortController = new AbortController();
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ code: codeValue }),
+                signal: abortController.signal
+            });
+
+            if (!response.ok) {
+                throw new Error(`Server returned HTTP ${response.status}`);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop();
+
+                for (const line of lines) {
+                    if (line.trim() === '') continue;
+                    let data;
+                    try {
+                        data = JSON.parse(line);
+                    } catch (e) {
+                        continue;
+                    }
+
+                    if (data.type === 'progress') {
+                        progressText.innerHTML = `Running testcase ${data.index} of ${data.total}...`;
+                        progressPercentage.innerHTML = `${data.percentage}%`;
+                        progressBar.style.width = `${data.percentage}%`;
+                    } else if (data.type === 'error') {
+                        resultSummary.className = 'result-header result-fail';
+                        resultSummary.innerHTML = `⚠️ ${data.message || 'Error occurred.'}`;
+                        progressContainer.style.display = 'none';
+                        if (data.traceback) {
+                            const pre = document.createElement('pre');
+                            pre.style.background = 'rgba(255,255,255,0.03)';
+                            pre.style.border = '1px solid var(--border-color)';
+                            pre.style.padding = '12px';
+                            pre.style.borderRadius = '8px';
+                            pre.style.overflowX = 'auto';
+                            pre.style.color = '#f43f5e';
+                            pre.style.fontFamily = 'var(--font-mono)';
+                            pre.style.fontSize = '0.85rem';
+                            pre.innerHTML = data.traceback;
+                            testcasesContainer.appendChild(pre);
+                        }
+                    } else if (data.type === 'result') {
+                        progressContainer.style.display = 'none';
+
+                        if (data.status === 'PASS') {
+                            resultSummary.className = 'result-header result-success';
+                            resultSummary.innerHTML = '🎉 Correct! All test cases passed.';
+                        } else {
+                            resultSummary.className = 'result-header result-fail';
+                            resultSummary.innerHTML = '❌ Incorrect. One or more test cases failed.';
+                        }
+
+                        resultTime.innerHTML = `Total Execution Time: ${data.total_time_ms} ms`;
+
+                        if (data.results) {
+                            data.results.forEach((tc, index) => {
+                                const tcItem = document.createElement('div');
+                                tcItem.className = 'testcase-item';
+                                
+                                const tcStatus = tc.passed ? '<span class="result-success">🟢 Passed</span>' : '<span class="result-fail">🔴 Failed</span>';
+                                tcItem.innerHTML = `
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                        <strong style="font-size: 0.9rem;">Test Case ${index + 1}</strong>
+                                        <span style="font-size: 0.85rem; font-weight: 600;">${tcStatus} (${tc.duration_ms} ms)</span>
+                                    </div>
+                                    <div style="font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px; color: var(--text-secondary);">
+                                        <div><strong>Inputs:</strong> <code style="font-family: var(--font-mono); color: #e2e8f0;">${JSON.stringify(tc.inputs_preview)}</code></div>
+                                        <div><strong>Expected Output:</strong> <code style="font-family: var(--font-mono); color: var(--color-success);">${JSON.stringify(tc.expected)}</code></div>
+                                        <div><strong>Actual Output:</strong> <code style="font-family: var(--font-mono); color: ${tc.passed ? 'var(--color-success)' : 'var(--color-fail)'};">${JSON.stringify(tc.actual)}</code></div>
+                                    </div>
+                                `;
+                                testcasesContainer.appendChild(tcItem);
+                            });
+                        }
+                    }
                 }
+            }
+        } catch (err) {
+            if (err.name === 'AbortError') {
                 return;
             }
-
-            resultTime.innerHTML = `Total Execution Time: ${data.total_time_ms} ms`;
-
-            if (data.results) {
-                data.results.forEach((tc, index) => {
-                    const tcItem = document.createElement('div');
-                    tcItem.className = 'testcase-item';
-                    
-                    const tcStatus = tc.passed ? '<span class="result-success">🟢 Passed</span>' : '<span class="result-fail">🔴 Failed</span>';
-                    tcItem.innerHTML = `
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                            <strong style="font-size: 0.9rem;">Test Case ${index + 1}</strong>
-                            <span style="font-size: 0.85rem; font-weight: 600;">${tcStatus} (${tc.duration_ms} ms)</span>
-                        </div>
-                        <div style="font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px; color: var(--text-secondary);">
-                            <div><strong>Inputs:</strong> <code style="font-family: var(--font-mono); color: #e2e8f0;">${JSON.stringify(tc.inputs_preview)}</code></div>
-                            <div><strong>Expected Output:</strong> <code style="font-family: var(--font-mono); color: var(--color-success);">${JSON.stringify(tc.expected)}</code></div>
-                            <div><strong>Actual Output:</strong> <code style="font-family: var(--font-mono); color: ${tc.passed ? 'var(--color-success)' : 'var(--color-fail)'};">${JSON.stringify(tc.actual)}</code></div>
-                        </div>
-                    `;
-                    testcasesContainer.appendChild(tcItem);
-                });
-            }
-        })
-        .catch(err => {
             resultSummary.className = 'result-header result-fail';
-            resultSummary.innerHTML = `⚠️ Network Error: ${err.message}`;
-        });
+            resultSummary.innerHTML = `⚠️ Error: ${err.message}`;
+            progressContainer.style.display = 'none';
+        } finally {
+            resetButtons();
+            abortController = null;
+        }
     }
 </script>
 {% endblock %}

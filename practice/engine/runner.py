@@ -148,3 +148,148 @@ def run_solution(problem, user_code):
         "results": results,
         "total_time_ms": total_time_ms
     }
+
+def run_solution_stream(problem, user_code):
+    """
+    Executes the user's Python solution and yields progress updates for each test case.
+    """
+    test_cases = problem.test_cases.all()
+    total = len(test_cases)
+    if not test_cases:
+        yield {"type": "error", "message": "No test cases found for this problem."}
+        return
+        
+    # Compile the user's code
+    namespace = {}
+    try:
+        namespace['ListNode'] = ListNode
+        namespace['TreeNode'] = TreeNode
+        exec(user_code, namespace)
+        
+        func_name = problem.function_name
+        if func_name not in namespace or not callable(namespace[func_name]):
+            yield {
+                "type": "error",
+                "message": f"Compilation Error: Could not find function '{func_name}' in your code."
+            }
+            return
+        solve_func = namespace[func_name]
+    except Exception as e:
+        yield {
+            "type": "error",
+            "message": f"Compilation/Syntax Error: {str(e)}",
+            "traceback": traceback.format_exc()
+        }
+        return
+        
+    results = []
+    all_passed = True
+    total_time_ms = 0
+    
+    # Run test cases
+    for idx, tc in enumerate(test_cases):
+        percentage = int((idx / total) * 100)
+        
+        # Parse inputs for preview
+        try:
+            inputs_preview = json.loads(tc.inputs)
+        except Exception:
+            inputs_preview = tc.inputs
+            
+        yield {
+            "type": "progress",
+            "index": idx + 1,
+            "total": total,
+            "percentage": percentage,
+            "inputs_preview": inputs_preview
+        }
+        
+        try:
+            raw_args = json.loads(tc.inputs)
+            expected_val = json.loads(tc.expected_output)
+            args = copy.deepcopy(raw_args)
+            
+            category = problem.category.lower()
+            converted_args = []
+            try:
+                type_hints = json.loads(problem.input_types)
+            except Exception:
+                type_hints = []
+                
+            for i, arg in enumerate(args):
+                hint = type_hints[i] if i < len(type_hints) else ""
+                if hint == "ListNode" and isinstance(arg, list):
+                    converted_args.append(list_to_linked_list(arg))
+                elif hint == "TreeNode" and isinstance(arg, list):
+                    converted_args.append(list_to_binary_tree(arg))
+                elif "linked list" in category and isinstance(arg, list) and (hint == "" or hint == "ListNode"):
+                    converted_args.append(list_to_linked_list(arg))
+                elif ("tree" in category or "bst" in category) and isinstance(arg, list) and (hint == "" or hint == "TreeNode"):
+                    converted_args.append(list_to_binary_tree(arg))
+                else:
+                    converted_args.append(arg)
+            
+            t_start = time.perf_counter()
+            actual_val = solve_func(*converted_args)
+            t_end = time.perf_counter()
+            
+            duration_ms = int((t_end - t_start) * 1000)
+            total_time_ms += duration_ms
+            
+            if isinstance(actual_val, ListNode):
+                actual_serialized = linked_list_to_list(actual_val)
+            elif isinstance(actual_val, TreeNode):
+                actual_serialized = binary_tree_to_list(actual_val)
+            elif actual_val is None and isinstance(expected_val, list):
+                actual_serialized = []
+            else:
+                actual_serialized = actual_val
+                
+            passed = False
+            comp_mode = tc.comparison_mode or 'Exact'
+            
+            if comp_mode == 'Ignore Order':
+                if isinstance(actual_serialized, list) and isinstance(expected_val, list):
+                    try:
+                        passed = sorted(actual_serialized) == sorted(expected_val)
+                    except TypeError:
+                        passed = len(actual_serialized) == len(expected_val) and all(x in expected_val for x in actual_serialized)
+                else:
+                    passed = actual_serialized == expected_val
+            else:
+                passed = actual_serialized == expected_val
+                
+            if not passed:
+                all_passed = False
+                
+            results.append({
+                "test_case_id": tc.id,
+                "passed": passed,
+                "duration_ms": duration_ms,
+                "inputs_preview": raw_args,
+                "actual": actual_serialized,
+                "expected": expected_val,
+                "message": "Passed" if passed else "Mismatch"
+            })
+            
+        except Exception as e:
+            all_passed = False
+            results.append({
+                "test_case_id": tc.id,
+                "passed": False,
+                "duration_ms": 0,
+                "inputs_preview": tc.inputs,
+                "actual": None,
+                "expected": tc.expected_output,
+                "message": f"Runtime Error: {str(e)}",
+                "traceback": traceback.format_exc()
+            })
+            
+    # Yield final result
+    yield {
+        "type": "result",
+        "status": "PASS" if all_passed else "FAIL",
+        "results": results,
+        "total_time_ms": total_time_ms
+    }
+

@@ -1,12 +1,12 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import JsonResponse
+from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Count, Q
 from django.utils import timezone
 import json
 import datetime
 from practice.models import Problem, TestCase, Submission, DailyActivity, Goal
-from practice.engine.runner import run_solution
+from practice.engine.runner import run_solution, run_solution_stream
 
 def dashboard(request):
     # Calculations for streak
@@ -169,8 +169,15 @@ def run_code(request, problem_id):
         body = json.loads(request.body)
         code = body.get("code", "")
         problem = get_object_or_404(Problem, id=problem_id)
-        result = run_solution(problem, code)
-        return JsonResponse(result)
+        
+        def stream_generator():
+            try:
+                for update in run_solution_stream(problem, code):
+                    yield json.dumps(update) + "\n"
+            except GeneratorExit:
+                pass
+                
+        return StreamingHttpResponse(stream_generator(), content_type="application/x-ndjson")
     except Exception as e:
         return JsonResponse({"status": "ERROR", "message": str(e)})
 
@@ -182,40 +189,46 @@ def submit_code(request, problem_id):
         body = json.loads(request.body)
         code = body.get("code", "")
         problem = get_object_or_404(Problem, id=problem_id)
-        result = run_solution(problem, code)
         
-        # Save submission
-        status = result.get("status", "FAIL")
-        duration = result.get("total_time_ms", 0)
-        err_msg = None
-        if status != "PASS":
-            err_msg = "\n".join([r.get("message", "") for r in result.get("results", []) if not r.get("passed")])
-            
-        Submission.objects.create(
-            problem=problem,
-            code=code,
-            status=status,
-            execution_time_ms=duration,
-            error_message=err_msg
-        )
-        
-        # Update daily activity
-        today = datetime.date.today()
-        activity, created = DailyActivity.objects.get_or_create(date=today)
-        activity.attempts += 1
-        if status == "PASS":
-            # Check if this is the first PASS for this problem today
-            # (to increment solved only for unique problems solved today)
-            already_solved_today = Submission.objects.filter(
-                problem=problem, 
-                status='PASS', 
-                timestamp__date=today
-            ).count()
-            if already_solved_today <= 1: # Counting the one we just created
-                activity.solved += 1
-        activity.save()
-        
-        return JsonResponse(result)
+        def stream_generator():
+            try:
+                final_result = None
+                for update in run_solution_stream(problem, code):
+                    if update.get("type") == "result":
+                        final_result = update
+                    yield json.dumps(update) + "\n"
+                
+                if final_result:
+                    status = final_result.get("status", "FAIL")
+                    duration = final_result.get("total_time_ms", 0)
+                    err_msg = None
+                    if status != "PASS":
+                        err_msg = "\n".join([r.get("message", "") for r in final_result.get("results", []) if not r.get("passed")])
+                        
+                    Submission.objects.create(
+                        problem=problem,
+                        code=code,
+                        status=status,
+                        execution_time_ms=duration,
+                        error_message=err_msg
+                    )
+                    
+                    today = datetime.date.today()
+                    activity, created = DailyActivity.objects.get_or_create(date=today)
+                    activity.attempts += 1
+                    if status == "PASS":
+                        already_solved_today = Submission.objects.filter(
+                            problem=problem, 
+                            status='PASS', 
+                            timestamp__date=today
+                        ).count()
+                        if already_solved_today <= 1:
+                            activity.solved += 1
+                    activity.save()
+            except GeneratorExit:
+                pass
+                
+        return StreamingHttpResponse(stream_generator(), content_type="application/x-ndjson")
     except Exception as e:
         return JsonResponse({"status": "ERROR", "message": str(e)})
 
