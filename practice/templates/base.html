@@ -1,0 +1,55 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <title>{% block title %}DSA Practice Hub{% endblock %}</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Main Style -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="logo">
+            <span class="logo-icon">⚡</span>
+            <span class="logo-text">DSA Hub</span>
+        </div>
+        <ul class="nav-links">
+            <li class="nav-item {% if request.resolver_match.view_name == 'practice:dashboard' %}active{% endif %}">
+                <a href="{% url 'practice:dashboard' %}">
+                    <span>📊</span> Dashboard
+                </a>
+            </li>
+            <li class="nav-item {% if request.resolver_match.view_name == 'practice:problems' %}active{% endif %}">
+                <a href="{% url 'practice:problems' %}">
+                    <span>📂</span> Problem Bank
+                </a>
+            </li>
+            <li class="nav-item {% if request.resolver_match.view_name == 'practice:roadmap' %}active{% endif %}">
+                <a href="{% url 'practice:roadmap' %}">
+                    <span>🗺️</span> Learning Roadmap
+                </a>
+            </li>
+            <li class="nav-item {% if request.resolver_match.view_name == 'practice:help' %}active{% endif %}">
+                <a href="{% url 'practice:help' %}">
+                    <span>📖</span> Understand Me
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

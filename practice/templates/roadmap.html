@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Roadmap | DSA Practice Hub{% endblock %}
+
+{% block content %}
+<div class="roadmap-header" style="margin-bottom: 40px;">
+    <h1>🗺️ Learning Roadmap</h1>
+    <p style="color: var(--text-secondary); margin-top: 4px;">Follow this structured 13-stage guide to master Data Structures & Algorithms patterns.</p>
+</div>
+
+<div class="roadmap-timeline">
+    {% for step in roadmap %}
+    <div class="roadmap-node">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 12px;">
+            <div class="roadmap-title">Stage {{ forloop.counter }}: {{ step.category }}</div>
+            <div style="font-size: 0.9rem; color: var(--text-secondary);">
+                Progress: <strong style="color: var(--color-success);">{{ step.solved }} / {{ step.total }}</strong> ({{ step.progress_pct }}%)
+            </div>
+        </div>
+        
+        <!-- Category progress bar -->
+        <div style="height: 4px; background-color: rgba(255,255,255,0.03); border-radius: 2px; overflow: hidden; margin: 4px 0 12px 0; width: 100%;">
+            <div style="height: 100%; width: {{ step.progress_pct }}%; background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%);"></div>
+        </div>
+        
+        <!-- Problems within stage -->
+        <div class="roadmap-cards">
+            {% for p in step.problems %}
+            <div class="roadmap-card" style="display: flex; flex-direction: column; justify-content: space-between; gap: 12px; {% if p.is_solved %}border-color: rgba(16, 185, 129, 0.2); background: rgba(16, 185, 129, 0.02);{% endif %}">
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary);">{{ p.id }}</span>
+                        <span class="badge {% if p.difficulty == 'Easy' %}easy{% elif p.difficulty == 'Medium' %}medium{% else %}hard{% endif %}" style="font-size: 0.65rem; padding: 2px 6px;">
+                            {{ p.difficulty }}
+                        </span>
+                    </div>
+                    <a href="{% url 'practice:practice' p.id %}" class="problem-link" style="font-size: 0.95rem; font-weight: 600;">{{ p.title }}</a>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; border-top: 1px solid var(--border-color); padding-top: 8px;">
+                    <span style="color: var(--text-secondary);">Concepts: {{ p.concepts_list.0 }}</span>
+                    {% if p.is_solved %}
+                    <span style="color: var(--color-success); font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">🟢 Solved</span>
+                    {% else %}
+                    <span style="color: var(--text-secondary); display: inline-flex; align-items: center; gap: 4px;">⚪ Pending</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

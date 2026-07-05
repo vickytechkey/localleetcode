@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ problem.title }} | Practice Sandbox{% endblock %}
+
+{% block extra_head %}
+<!-- Monaco Editor Loader -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.39.0/min/vs/loader.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="practice-container">
+    <!-- Left Pane: Problem Description -->
+    <div class="description-pane">
+        <div class="pane-header">
+            <div>
+                <span style="font-family: var(--font-mono); color: var(--text-secondary); font-size: 0.85rem;">{{ problem.id }}</span>
+                <h2 style="margin: 4px 0 0 0; font-size: 1.3rem;">{{ problem.title }}</h2>
+            </div>
+            <span class="badge {% if problem.difficulty == 'Easy' %}easy{% elif problem.difficulty == 'Medium' %}medium{% else %}hard{% endif %}">
+                {{ problem.difficulty }}
+            </span>
+        </div>
+        <div class="pane-content">
+            <p style="font-weight: 500; color: var(--color-primary);">Category: <code>{{ problem.category }}</code></p>
+            
+            <div style="margin-top: 16px; font-size: 0.95rem; line-height: 1.6; color: #cbd5e1;">
+                {{ problem.description|linebreaksbr }}
+            </div>
+            
+            {% if problem.concepts %}
+            <h3 style="font-size: 1.05rem; margin-top: 24px; margin-bottom: 8px;">Concepts:</h3>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                {% for concept in problem.concepts_list %}
+                <span style="background-color: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; color: #a5b4fc;">{{ concept }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if problem.hints %}
+            <h3 style="font-size: 1.05rem; margin-top: 24px; margin-bottom: 8px;">Hints:</h3>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                {% for hint in problem.hints_list %}
+                {% if hint %}
+                <details style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; cursor: pointer;">
+                    <summary style="font-weight: 600; font-size: 0.9rem; color: var(--text-secondary);">Show Hint {{ forloop.counter }}</summary>
+                    <p style="margin-top: 8px; font-size: 0.9rem; color: #94a3b8; line-height: 1.5;">{{ hint.strip }}</p>
+                </details>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Right Pane: Code Editor & Results -->
+    <div class="editor-pane">
+        <div class="pane-header">
+            <span style="font-weight: 600; font-size: 0.95rem;">🐍 Python 3.10 Editor</span>
+            <div style="display: flex; gap: 8px;">
+                <!-- Theme option / Info -->
+            </div>
+        </div>
+        
+        <!-- Monaco Editor Div -->
+        <div id="editor-container"></div>
+        
+        <!-- Action Buttons -->
+        <div class="control-bar">
+            <button id="btn-run" class="btn btn-secondary">💻 Run Code</button>
+            <button id="btn-submit" class="btn btn-primary">🚀 Submit Solution</button>
+        </div>
+
+        <!-- Dynamic Results Panel (hidden initially) -->
+        <div id="results-panel" class="results-panel" style="display: none;">
+            <div id="result-summary" class="result-header"></div>
+            <div id="result-time" style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;"></div>
+            <div class="testcase-list" id="testcases-container"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Initialize Monaco Editor
+    let editor;
+    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.39.0/min/vs' } });
+    require(['vs/editor/editor.main'], function() {
+        editor = monaco.editor.create(document.getElementById('editor-container'), {
+            value: `{{ default_code|escapejs }}`,
+            language: 'python',
+            theme: 'vs-dark',
+            fontSize: 14,
+            fontFamily: 'JetBrains Mono, Courier New, monospace',
+            minimap: { enabled: false },
+            automaticLayout: true,
+            lineHeight: 22,
+            scrollbar: {
+                vertical: 'visible',
+                horizontal: 'visible'
+            }
+        });
+    });
+
+    const runBtn = document.getElementById('btn-run');
+    const submitBtn = document.getElementById('btn-submit');
+    const resultsPanel = document.getElementById('results-panel');
+    const resultSummary = document.getElementById('result-summary');
+    const resultTime = document.getElementById('result-time');
+    const testcasesContainer = document.getElementById('testcases-container');
+
+    runBtn.addEventListener('click', () => executeCode("{% url 'practice:run_code' problem.id %}"));
+    submitBtn.addEventListener('click', () => executeCode("{% url 'practice:submit_code' problem.id %}"));
+
+    function executeCode(url) {
+        if (!editor) return;
+        const codeValue = editor.getValue();
+        
+        // Show spinner / loading status
+        resultSummary.className = 'result-header';
+        resultSummary.innerHTML = '⚡ Running test cases...';
+        resultTime.innerHTML = '';
+        testcasesContainer.innerHTML = '';
+        resultsPanel.style.display = 'block';
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ code: codeValue })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'PASS') {
+                resultSummary.className = 'result-header result-success';
+                resultSummary.innerHTML = '🎉 Correct! All test cases passed.';
+            } else if (data.status === 'FAIL') {
+                resultSummary.className = 'result-header result-fail';
+                resultSummary.innerHTML = '❌ Incorrect. One or more test cases failed.';
+            } else {
+                resultSummary.className = 'result-header result-fail';
+                resultSummary.innerHTML = `⚠️ Error: ${data.message || 'Unknown error occurred.'}`;
+                if (data.traceback) {
+                    const pre = document.createElement('pre');
+                    pre.style.background = 'rgba(255,255,255,0.03)';
+                    pre.style.border = '1px solid var(--border-color)';
+                    pre.style.padding = '12px';
+                    pre.style.borderRadius = '8px';
+                    pre.style.overflowX = 'auto';
+                    pre.style.color = '#f43f5e';
+                    pre.style.fontFamily = 'var(--font-mono)';
+                    pre.style.fontSize = '0.85rem';
+                    pre.innerHTML = data.traceback;
+                    testcasesContainer.appendChild(pre);
+                }
+                return;
+            }
+
+            resultTime.innerHTML = `Total Execution Time: ${data.total_time_ms} ms`;
+
+            if (data.results) {
+                data.results.forEach((tc, index) => {
+                    const tcItem = document.createElement('div');
+                    tcItem.className = 'testcase-item';
+                    
+                    const tcStatus = tc.passed ? '<span class="result-success">🟢 Passed</span>' : '<span class="result-fail">🔴 Failed</span>';
+                    tcItem.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <strong style="font-size: 0.9rem;">Test Case ${index + 1}</strong>
+                            <span style="font-size: 0.85rem; font-weight: 600;">${tcStatus} (${tc.duration_ms} ms)</span>
+                        </div>
+                        <div style="font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px; color: var(--text-secondary);">
+                            <div><strong>Inputs:</strong> <code style="font-family: var(--font-mono); color: #e2e8f0;">${JSON.stringify(tc.inputs_preview)}</code></div>
+                            <div><strong>Expected Output:</strong> <code style="font-family: var(--font-mono); color: var(--color-success);">${JSON.stringify(tc.expected)}</code></div>
+                            <div><strong>Actual Output:</strong> <code style="font-family: var(--font-mono); color: ${tc.passed ? 'var(--color-success)' : 'var(--color-fail)'};">${JSON.stringify(tc.actual)}</code></div>
+                        </div>
+                    `;
+                    testcasesContainer.appendChild(tcItem);
+                });
+            }
+        })
+        .catch(err => {
+            resultSummary.className = 'result-header result-fail';
+            resultSummary.innerHTML = `⚠️ Network Error: ${err.message}`;
+        });
+    }
+</script>
+{% endblock %}

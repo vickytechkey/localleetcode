@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Understand Me | DSA Practice Hub{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 40px;">
+    <h1>📖 Understand Me</h1>
+    <p style="color: var(--text-secondary); margin-top: 4px;">Documentation, guidelines, and reference definitions for the DSA Practice Hub.</p>
+</div>
+
+<div class="stat-card" style="margin-bottom: 24px; line-height: 1.6;">
+    <h3 style="font-size: 1.2rem; color: var(--color-primary); margin-bottom: 12px;">💡 How to use the platform</h3>
+    <p style="margin-bottom: 12px;">This platform is built to help you practice Data Structures and Algorithms patterns step-by-step. Select a problem from the <strong>Problem Bank</strong> or follow the sequential stages in the <strong>Learning Roadmap</strong>.</p>
+    <p style="margin-bottom: 12px;">Write your code in the <strong>Practice Sandbox</strong> and click <strong>Run Code</strong> to evaluate against the built-in test cases. Once satisfied, click <strong>Submit Solution</strong> to update your progress, track your coding streaking, and update the dashboard heatmap!</p>
+</div>
+
+<div class="stat-card" style="margin-bottom: 24px; line-height: 1.6;">
+    <h3 style="font-size: 1.2rem; color: var(--color-primary); margin-bottom: 12px;">📋 Custom Data Structures Reference</h3>
+    <p style="margin-bottom: 12px;">For Linked List and Tree problems, the platform automatically parses the standard JSON array input and converts it into custom Python objects. Your solution should operate directly on these nodes, and return the head (for Linked List) or root (for Trees) node.</p>
+    
+    <h4 style="font-size: 1rem; margin-top: 16px; margin-bottom: 8px; color: var(--text-primary);">Singly Linked List Node (<code>ListNode</code>)</h4>
+    <pre style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; font-family: var(--font-mono); font-size: 0.85rem; color: #cbd5e1; margin-bottom: 16px;">
+class ListNode:
+    def __init__(self, val=0, next=None):
+        self.val = val
+        self.next = next
+    </pre>
+
+    <h4 style="font-size: 1rem; margin-top: 16px; margin-bottom: 8px; color: var(--text-primary);">Binary Tree Node (<code>TreeNode</code>)</h4>
+    <pre style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; font-family: var(--font-mono); font-size: 0.85rem; color: #cbd5e1; margin-bottom: 16px;">
+class TreeNode:
+    def __init__(self, val=0, left=None, right=None):
+        self.val = val
+        self.left = left
+        self.right = right
+    </pre>
+</div>
+
+<div class="stat-card" style="line-height: 1.6;">
+    <h3 style="font-size: 1.2rem; color: var(--color-primary); margin-bottom: 12px;">🗺️ The 13 Key DSA Coding Patterns</h3>
+    <ul style="list-style-type: square; padding-left: 20px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 8px;">
+        <li><strong>Arrays & Hashing</strong>: Hash map lookup, frequency maps, prefix products, prefix sums.</li>
+        <li><strong>Two Pointers</strong>: Left/Right boundaries moving inwards, fast/slow boundaries.</li>
+        <li><strong>Sliding Window</strong>: Dynamic or fixed-sized subsegments tracking, shrinking boundaries.</li>
+        <li><strong>Stack & Queue</strong>: FIFO / LIFO orderings, monotonic stacks.</li>
+        <li><strong>Binary Search</strong>: Searching sorted domains, binary searching answer space.</li>
+        <li><strong>Linked List</strong>: Pointer manipulation, reversals, merging.</li>
+        <li><strong>Trees & BST</strong>: Recursion, depth-first traversal (pre/in/post-order), level-order traversal.</li>
+        <li><strong>Heap / Priority Queue</strong>: Realtime min/max tracking, merging streams, top k items.</li>
+        <li><strong>Backtracking</strong>: Combinatorial generation, pruning search space, N-Queens.</li>
+        <li><strong>Graphs & BFS/DFS</strong>: Traversing adjacency grids, topological sorting, shortest paths.</li>
+        <li><strong>Greedy</strong>: Locally optimal choices making global solutions, intervals merging.</li>
+        <li><strong>Dynamic Programming</strong>: Memoized recursion, tabular subproblems.</li>
+        <li><strong>Advanced Patterns</strong>: Prefix Trees (Tries), Bit Manipulation tricks.</li>
+    </ul>
+</div>
+{% endblock %}
