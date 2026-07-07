@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Company Prep | DSA Practice Hub{% endblock %}
+
+{% block content %}
+<div class="roadmap-header" style="margin-bottom: 32px;">
+    <h1>🏢 Indian Company Prep & Placement Hub</h1>
+    <p style="color: var(--text-secondary); margin-top: 4px;">Learn placement strategies, select your target company, and tackle previously asked questions.</p>
+</div>
+
+<!-- Guides for Indian Placements -->
+<div style="display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 32px;">
+    <!-- Service-Based Guide -->
+    <div class="stat-card" style="flex: 1; min-width: 300px; border-left: 4px solid var(--color-secondary);">
+        <h3 style="font-size: 1.15rem; color: var(--color-secondary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+            <span>💼</span> Service-Based Companies (TCS, Infosys, Wipro, Cognizant)
+        </h3>
+        <ul style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; padding-left: 20px; display: flex; flex-direction: column; gap: 8px;">
+            <li><strong>Focus Areas:</strong> Arrays, Strings, Basic Math (GCD, Primes), Searching/Sorting.</li>
+            <li><strong>Recruitment:</strong> Bulk exams like TCS NQT or Infosys InfyTQ. Focus on time limits and speed.</li>
+            <li><strong>Strategy:</strong> Master standard templates. Service companies test basic logic, syntax correctness, and edge cases. Solve 40-50 Easy & Medium problems.</li>
+        </ul>
+    </div>
+
+    <!-- Product-Based Guide -->
+    <div class="stat-card" style="flex: 1; min-width: 300px; border-left: 4px solid var(--color-primary);">
+        <h3 style="font-size: 1.15rem; color: var(--color-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+            <span>🚀</span> Product-Based Companies (Zoho, Flipkart, Swiggy, Paytm, Zomato)
+        </h3>
+        <ul style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; padding-left: 20px; display: flex; flex-direction: column; gap: 8px;">
+            <li><strong>Focus Areas:</strong> Recursion, Backtracking (Zoho's favorite), Trees, Dynamic Programming, Graphs.</li>
+            <li><strong>Recruitment:</strong> Zoho Round 2 (interactive console coding), Flipkart Machine Coding, Swiggy/Zomato technical interviews.</li>
+            <li><strong>Strategy:</strong> Optimization is key (space/time complexity matters). Product-based companies verify code design, modularity, and clean coding. Solve 100+ Medium & Hard problems.</li>
+        </ul>
+    </div>
+</div>
+
+<!-- Select Target Company & Stats -->
+<div class="stat-card" style="margin-bottom: 32px; background: rgba(99, 102, 241, 0.02); border-color: var(--color-primary-glow);">
+    <form method="GET" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+        <div style="flex-grow: 1;">
+            <label style="display: block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 6px; font-weight: 500;">Select Target Indian Company</label>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                {% for comp in companies %}
+                <button type="submit" name="company" value="{{ comp }}" class="btn {% if selected_company == comp %}btn-primary{% else %}btn-secondary{% endif %}" style="padding: 6px 12px; font-size: 0.85rem; border-radius: 20px;">
+                    {{ comp }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div>
+            <label style="display: block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 6px; font-weight: 500;">Difficulty</label>
+            <select name="difficulty" onchange="this.form.submit()" class="select-filter" style="padding: 8px 12px;">
+                <option value="">All Difficulties</option>
+                <option value="Easy" {% if selected_difficulty == 'Easy' %}selected{% endif %}>Easy</option>
+                <option value="Medium" {% if selected_difficulty == 'Medium' %}selected{% endif %}>Medium</option>
+                <option value="Hard" {% if selected_difficulty == 'Hard' %}selected{% endif %}>Hard</option>
+            </select>
+        </div>
+    </form>
+
+    <!-- Company Stats Tracker -->
+    <div style="margin-top: 24px; border-top: 1px solid var(--border-color); padding-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div>
+            <h3 style="font-size: 1.1rem; margin: 0;">📊 Personal progress in {{ selected_company }}</h3>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">
+                Solved <strong style="color: var(--color-success);">{{ solved_count }} / {{ total_count }}</strong> tagged problems ({{ progress_pct }}%)
+            </p>
+        </div>
+        <div style="width: 250px;">
+            <div style="height: 8px; background-color: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; display: block; margin-bottom: 4px;">
+                <div style="height: 100%; width: {{ progress_pct }}%; background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%);"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Problems List -->
+<h2 style="font-size: 1.3rem; margin-bottom: 16px;">📂 Tagged Placement Problems</h2>
+<div class="table-container">
+    {% if problems %}
+    <table>
+        <thead>
+            <tr>
+                <th>Status</th>
+                <th>ID</th>
+                <th>Title</th>
+                <th>Difficulty</th>
+                <th>Topic Category</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in problems %}
+            <tr>
+                <td>
+                    {% if p.is_solved %}
+                    <span style="color: var(--color-success); font-weight: bold;">🟢 Solved</span>
+                    {% else %}
+                    <span style="color: var(--text-secondary);">⚪ Pending</span>
+                    {% endif %}
+                </td>
+                <td style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-secondary);">{{ p.id }}</td>
+                <td>
+                    <a href="{% url 'practice:practice' p.id %}" class="problem-link">{{ p.title }}</a>
+                </td>
+                <td>
+                    <span class="badge {% if p.difficulty == 'Easy' %}easy{% elif p.difficulty == 'Medium' %}medium{% else %}hard{% endif %}" style="font-size: 0.7rem; padding: 2px 8px;">
+                        {{ p.difficulty }}
+                    </span>
+                </td>
+                <td style="color: var(--text-secondary); font-size: 0.9rem;">{{ p.category }}</td>
+                <td>
+                    <a href="{% url 'practice:practice' p.id %}" class="btn btn-secondary" style="padding: 4px 12px; font-size: 0.8rem; text-decoration: none;">Solve</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div style="padding: 40px; text-align: center; color: var(--text-secondary);">
+        <div style="font-size: 2rem; margin-bottom: 8px;">🏢</div>
+        No problems found matching the selected filters.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

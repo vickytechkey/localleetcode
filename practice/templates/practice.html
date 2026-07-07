@@ -1,54 +1,85 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}{{ problem.title }} | Practice Sandbox{% endblock %}
+{% block title %}{{ problem.title }} | Sandbox{% endblock %}
 
 {% block extra_head %}
-<!-- Monaco Editor Loader -->
+<!-- Monaco Editor Source -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.39.0/min/vs/loader.min.js"></script>
+<style>
+    .editor-active-line-highlight {
+        background: rgba(99, 102, 241, 0.2) !important;
+    }
+    .debug-btn {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .debug-btn:hover {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+</style>
 {% endblock %}
 
 {% block content %}
+<div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <a href="{% url 'practice:problems' %}" style="color: var(--text-secondary); text-decoration: none; font-size: 0.9rem;">← Back to Problems</a>
+        <h1 style="font-size: 1.8rem; margin-top: 8px; margin-bottom: 0;">💻 {{ problem.title }}</h1>
+    </div>
+    <div>
+        <span class="badge {% if problem.difficulty == 'Easy' %}easy{% elif problem.difficulty == 'Medium' %}medium{% else %}hard{% endif %}">{{ problem.difficulty }}</span>
+    </div>
+</div>
+
 <div class="practice-container">
     <!-- Left Pane: Problem Description -->
     <div class="description-pane">
         <div class="pane-header">
-            <div>
-                <span style="font-family: var(--font-mono); color: var(--text-secondary); font-size: 0.85rem;">{{ problem.id }}</span>
-                <h2 style="margin: 4px 0 0 0; font-size: 1.3rem;">{{ problem.title }}</h2>
-            </div>
-            <span class="badge {% if problem.difficulty == 'Easy' %}easy{% elif problem.difficulty == 'Medium' %}medium{% else %}hard{% endif %}">
-                {{ problem.difficulty }}
-            </span>
+            <span style="font-weight: 600; font-size: 0.95rem;">📖 Problem Description</span>
+            <span style="font-size: 0.8rem; color: var(--text-secondary);">ID: {{ problem.id }}</span>
         </div>
         <div class="pane-content">
-            <p style="font-weight: 500; color: var(--color-primary);">Category: <code>{{ problem.category }}</code></p>
+            <p style="white-space: pre-line;">{{ problem.description }}</p>
             
-            <div style="margin-top: 16px; font-size: 0.95rem; line-height: 1.6; color: #cbd5e1;">
-                {{ problem.description|linebreaksbr }}
+            {% if problem.companies %}
+            <div style="margin-top: 16px; font-size: 0.85rem; color: var(--text-secondary);">
+                <strong>🏢 Asked in:</strong> {{ problem.companies }}
             </div>
+            {% endif %}
             
-            {% if problem.concepts %}
-            <h3 style="font-size: 1.05rem; margin-top: 24px; margin-bottom: 8px;">Concepts:</h3>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            {% if problem.concepts_list %}
+            <h3>Tags / Concepts</h3>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
                 {% for concept in problem.concepts_list %}
-                <span style="background-color: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; color: #a5b4fc;">{{ concept }}</span>
+                <span class="badge completed" style="background-color: rgba(99, 102, 241, 0.08); color: var(--color-primary); text-transform: none;">{{ concept }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            {% if problem.hints_list %}
+            <h3>💡 Hints</h3>
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                {% for hint in problem.hints_list %}
+                <div style="font-size: 0.85rem; background: rgba(255,255,255,0.02); border: 1px dashed var(--border-color); padding: 10px; border-radius: 8px; color: var(--text-secondary);">
+                    <strong>Hint {{ forloop.counter }}:</strong> {{ hint }}
+                </div>
                 {% endfor %}
             </div>
             {% endif %}
 
-            {% if problem.hints %}
-            <h3 style="font-size: 1.05rem; margin-top: 24px; margin-bottom: 8px;">Hints:</h3>
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-                {% for hint in problem.hints_list %}
-                {% if hint %}
-                <details style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; cursor: pointer;">
-                    <summary style="font-weight: 600; font-size: 0.9rem; color: var(--text-secondary);">Show Hint {{ forloop.counter }}</summary>
-                    <p style="margin-top: 8px; font-size: 0.9rem; color: #94a3b8; line-height: 1.5;">{{ hint.strip }}</p>
-                </details>
-                {% endif %}
-                {% endfor %}
-            </div>
+            {% if problem.solution_code %}
+            <h3>💡 Reference Solution</h3>
+            <details style="margin-top: 8px; background: rgba(255,255,255,0.02); border: 1px dashed var(--border-color); border-radius: 8px; padding: 12px; cursor: pointer;">
+                <summary style="font-size: 0.9rem; font-weight: 600; color: var(--color-primary); outline: none;">Reveal Working Python 3 Solution</summary>
+                <pre style="margin-top: 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); padding: 12px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.85rem; color: #cbd5e1; overflow-x: auto; white-space: pre-wrap; cursor: text;">{{ problem.solution_code }}</pre>
+            </details>
             {% endif %}
         </div>
     </div>
@@ -58,7 +89,7 @@
         <div class="pane-header">
             <span style="font-weight: 600; font-size: 0.95rem;">🐍 Python 3.10 Editor</span>
             <div style="display: flex; gap: 8px;">
-                <!-- Theme option / Info -->
+                <!-- Controls -->
             </div>
         </div>
         
@@ -93,8 +124,10 @@
 
 {% block extra_js %}
 <script>
-    // Initialize Monaco Editor
     let editor;
+    let currentDecorations = [];
+    let executionTraces = {}; // Store traces for each testcase
+
     require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.39.0/min/vs' } });
     require(['vs/editor/editor.main'], function() {
         editor = monaco.editor.create(document.getElementById('editor-container'), {
@@ -170,6 +203,8 @@
         stopBtn.style.display = 'inline-block';
 
         abortController = new AbortController();
+        executionTraces = {}; // clear old traces
+        clearHighlight();
 
         try {
             const response = await fetch(url, {
@@ -244,18 +279,48 @@
                             data.results.forEach((tc, index) => {
                                 const tcItem = document.createElement('div');
                                 tcItem.className = 'testcase-item';
+                                tcItem.style.marginBottom = '16px';
                                 
                                 const tcStatus = tc.passed ? '<span class="result-success">🟢 Passed</span>' : '<span class="result-fail">🔴 Failed</span>';
+                                
+                                // Store steps trace in global tracker
+                                const tcId = `tc-${index}`;
+                                if (tc.steps && tc.steps.length > 0) {
+                                    executionTraces[tcId] = tc.steps;
+                                }
+
                                 tcItem.innerHTML = `
                                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                                         <strong style="font-size: 0.9rem;">Test Case ${index + 1}</strong>
                                         <span style="font-size: 0.85rem; font-weight: 600;">${tcStatus} (${tc.duration_ms} ms)</span>
                                     </div>
-                                    <div style="font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px; color: var(--text-secondary);">
+                                    <div style="font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px; color: var(--text-secondary); margin-bottom: 8px;">
                                         <div><strong>Inputs:</strong> <code style="font-family: var(--font-mono); color: #e2e8f0;">${JSON.stringify(tc.inputs_preview)}</code></div>
                                         <div><strong>Expected Output:</strong> <code style="font-family: var(--font-mono); color: var(--color-success);">${JSON.stringify(tc.expected)}</code></div>
                                         <div><strong>Actual Output:</strong> <code style="font-family: var(--font-mono); color: ${tc.passed ? 'var(--color-success)' : 'var(--color-fail)'};">${JSON.stringify(tc.actual)}</code></div>
+                                        ${tc.stdout ? `<div style="margin-top: 6px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; font-family: var(--font-mono); border: 1px solid var(--border-color); color: #94a3b8;"><strong>Debug Output:</strong><br>${tc.stdout.replace(/\n/g, '<br>')}</div>` : ''}
                                     </div>
+                                    
+                                    ${tc.steps && tc.steps.length > 0 ? `
+                                    <button class="debug-btn" onclick="toggleDebugger('${tcId}')">🔍 Visual Debug Trace (${tc.steps.length} steps)</button>
+                                    <div id="debug-panel-${tcId}" style="display: none; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-top: 8px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                            <div style="display: flex; gap: 4px;">
+                                                <button class="btn" style="padding: 2px 6px; font-size: 0.75rem;" onclick="stepTrace('${tcId}', -100)">|<<</button>
+                                                <button class="btn" style="padding: 2px 6px; font-size: 0.75rem;" onclick="stepTrace('${tcId}', -1)">< Prev</button>
+                                                <button class="btn" style="padding: 2px 6px; font-size: 0.75rem;" onclick="stepTrace('${tcId}', 1)">Next ></button>
+                                                <button class="btn" style="padding: 2px 6px; font-size: 0.75rem;" onclick="stepTrace('${tcId}', 100)">>>|</button>
+                                            </div>
+                                            <span style="font-size: 0.75rem; font-weight: 500;" id="debug-step-text-${tcId}">Step: 1 / ${tc.steps.length}</span>
+                                        </div>
+                                        <input type="range" min="0" max="${tc.steps.length - 1}" value="0" style="width: 100%; margin-bottom: 12px;" id="debug-slider-${tcId}" oninput="setTraceIndex('${tcId}', parseInt(this.value))">
+                                        <div style="font-size: 0.8rem; background: rgba(0,0,0,0.3); border-radius: 4px; padding: 8px; border: 1px solid var(--border-color);">
+                                            <div style="margin-bottom: 4px;"><strong>Active Line:</strong> <span id="debug-line-${tcId}" style="color: var(--color-primary); font-weight: bold;">Line ${tc.steps[0].line}</span></div>
+                                            <div><strong>Local Variables:</strong></div>
+                                            <pre id="debug-locals-${tcId}" style="font-family: var(--font-mono); font-size: 0.75rem; color: #e2e8f0; margin-top: 4px; overflow-x: auto; white-space: pre-wrap;"></pre>
+                                        </div>
+                                    </div>
+                                    ` : ''}
                                 `;
                                 testcasesContainer.appendChild(tcItem);
                             });
@@ -273,6 +338,77 @@
         } finally {
             resetButtons();
             abortController = null;
+        }
+    }
+
+    // Trace debugger functions
+    let activeTraceIndices = {};
+
+    window.toggleDebugger = function(tcId) {
+        const panel = document.getElementById(`debug-panel-${tcId}`);
+        const isHidden = panel.style.display === 'none';
+        
+        // Hide all debuggers first
+        document.querySelectorAll('[id^="debug-panel-"]').forEach(p => p.style.display = 'none');
+        clearHighlight();
+
+        if (isHidden) {
+            panel.style.display = 'block';
+            activeTraceIndices[tcId] = 0;
+            setTraceIndex(tcId, 0);
+        }
+    };
+
+    window.setTraceIndex = function(tcId, idx) {
+        const steps = executionTraces[tcId];
+        if (!steps || idx < 0 || idx >= steps.length) return;
+
+        activeTraceIndices[tcId] = idx;
+        
+        // Update slider & counter text
+        document.getElementById(`debug-slider-${tcId}`).value = idx;
+        document.getElementById(`debug-step-text-${tcId}`).innerText = `Step: ${idx + 1} / ${steps.length}`;
+        
+        // Update variable state & line text
+        const step = steps[idx];
+        document.getElementById(`debug-line-${tcId}`).innerText = `Line ${step.line} (${step.event})`;
+        
+        const localsPre = document.getElementById(`debug-locals-${tcId}`);
+        localsPre.innerText = JSON.stringify(step.locals, null, 2);
+
+        // Highlight line in Monaco Editor
+        highlightEditorLine(step.line);
+    };
+
+    window.stepTrace = function(tcId, direction) {
+        const currentIdx = activeTraceIndices[tcId] || 0;
+        const steps = executionTraces[tcId];
+        if (!steps) return;
+
+        let newIdx = currentIdx + direction;
+        if (newIdx < 0) newIdx = 0;
+        if (newIdx >= steps.length) newIdx = steps.length - 1;
+
+        setTraceIndex(tcId, newIdx);
+    };
+
+    function highlightEditorLine(lineNo) {
+        if (!editor) return;
+        editor.revealLineInCenter(lineNo);
+        currentDecorations = editor.deltaDecorations(currentDecorations, [
+            {
+                range: new monaco.Range(lineNo, 1, lineNo, 1),
+                options: {
+                    isWholeLine: true,
+                    className: 'editor-active-line-highlight'
+                }
+            }
+        ]);
+    }
+
+    function clearHighlight() {
+        if (editor && currentDecorations.length > 0) {
+            currentDecorations = editor.deltaDecorations(currentDecorations, []);
         }
     }
 </script>

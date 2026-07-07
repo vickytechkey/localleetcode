@@ -3,6 +3,59 @@ import random
 import copy
 from practice.models import Problem, TestCase
 
+def add_examples_and_solution(problem, cases):
+    import inspect
+    examples_str = "\n\n### Examples:\n"
+    
+    try:
+        types = json.loads(problem.input_types)
+        arg_names = [f"arg{i+1}" for i in range(len(types))]
+    except Exception:
+        arg_names = ["input"]
+        
+    f_name = problem.function_name
+    if f_name == "twoSum": arg_names = ["nums", "target"]
+    elif f_name == "containsDuplicate": arg_names = ["nums"]
+    elif f_name == "isPalindrome": arg_names = ["s"]
+    elif f_name == "twoSumSorted": arg_names = ["numbers", "target"]
+    elif f_name == "maxProfit": arg_names = ["prices"]
+    elif f_name == "lengthOfLongestSubstring": arg_names = ["s"]
+    elif f_name == "isValid": arg_names = ["s"]
+    elif f_name == "search": arg_names = ["nums", "target"]
+    elif f_name == "reverseList": arg_names = ["head"]
+    elif f_name == "mergeTwoLists": arg_names = ["list1", "list2"]
+    elif f_name == "maxDepth": arg_names = ["root"]
+    elif f_name == "invertTree": arg_names = ["root"]
+    elif f_name == "topKFrequent": arg_names = ["nums", "k"]
+    elif f_name == "subsets": arg_names = ["nums"]
+    elif f_name == "numIslands": arg_names = ["grid"]
+    elif f_name == "canJump": arg_names = ["nums"]
+    elif f_name == "singleNumber": arg_names = ["nums"]
+    elif f_name == "findKthLargest": arg_names = ["nums", "k"]
+    elif f_name == "climbStairs": arg_names = ["n"]
+
+    for idx, (inputs, expected) in enumerate(cases[:3]):
+        formatted_inputs = []
+        for i, val in enumerate(inputs):
+            name = arg_names[i] if i < len(arg_names) else f"arg{i+1}"
+            formatted_inputs.append(f"{name} = {json.dumps(val)}")
+            
+        examples_str += f"**Example {idx + 1}:**\n"
+        examples_str += f"- **Input:** `{', '.join(formatted_inputs)}`\n"
+        examples_str += f"- **Output:** `{json.dumps(expected)}`\n\n"
+        
+    problem.description += examples_str
+    
+    if f_name in GOLDEN_SOLVERS:
+        try:
+            src = inspect.getsource(GOLDEN_SOLVERS[f_name])
+            src = src.replace(f"ref_{f_name}", f_name)
+            problem.solution_code = src
+        except Exception:
+            pass
+            
+    problem.save()
+
 def run_seed():
     """
     Populates the database with 200 classic DSA problems across 13 major patterns,
@@ -13,14 +66,37 @@ def run_seed():
     # Define the 13 patterns and classic problems within each
     problems_data = []
 
-    # 1. ARRAYS & HASHING (20 problems)
-    arrays_hashing = [
+    # 1. ARRAYS (7 problems)
+    arrays = [
+        ("Contains Duplicate", "Easy", "containsDuplicate", '["List[int]"]',
+         "Given an integer array nums, return true if any value appears at least twice in the array, and return false if every element is distinct.",
+         "array", "Use a set to keep track of elements; If an element is already in the set, a duplicate is found."),
+        ("Product of Array Except Self", "Medium", "productExceptSelf", '["List[int]"]',
+         "Given an integer array nums, return an array answer such that answer[i] is equal to the product of all the elements of nums except nums[i]. Must run in O(n) time.",
+         "array, prefix-sum", "Compute prefix products in one pass; Compute suffix products in a second pass."),
+        ("First Missing Positive", "Hard", "firstMissingPositive", '["List[int]"]',
+         "Given an unsorted integer array nums, return the smallest missing positive integer. Must run in O(n) time and use O(1) auxiliary space.",
+         "array, hash-table", "Place each number at its target index (nums[i] at index nums[i]-1); Scan the array to find the first index mismatch."),
+        ("Intersection of Two Arrays", "Easy", "intersection", '["List[int]", "List[int]"]',
+         "Given two integer arrays nums1 and nums2, return an array of their intersection. Each element must be unique.",
+         "array, hash-table", "Convert both arrays to sets; Use set intersection.", "Ignore Order"),
+        ("Majority Element", "Easy", "majorityElement", '["List[int]"]',
+         "Given an array nums of size n, return the majority element (appears more than n/2 times).",
+         "array, Boyer-Moore", "Use Boyer-Moore Voting Algorithm; Track candidate and count."),
+        ("Find All Duplicates in an Array", "Medium", "findDuplicates", '["List[int]"]',
+         "Given an integer array nums where integers are in [1, n], find all elements that appear twice.",
+         "array, sign-flip", "Use element values as indices; Flip sign of value at index to mark seen.", "Ignore Order"),
+        ("Unique Email Addresses", "Easy", "numUniqueEmails", '["List[str]"]',
+         "Given an array of strings emails, return the number of unique email addresses that actually receive mails.",
+         "string, hash-table", "Split emails into local and domain names; Remove '.' and ignore everything after '+' in the local name.")
+    ]
+    problems_data.extend([("AR", *p) for p in arrays])
+
+    # 1.5. HASHING (12 problems)
+    hashing = [
         ("Two Sum", "Easy", "twoSum", '["List[int]", "int"]', 
          "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.",
          "array, hash-table", "Use a hash map to store seen values and indices; The complement is target - nums[i]."),
-        ("Contains Duplicate", "Easy", "containsDuplicate", '["List[int]"]',
-         "Given an integer array nums, return true if any value appears at least twice in the array, and return false if every element is distinct.",
-         "array, hash-table", "Use a set to keep track of elements; If an element is already in the set, a duplicate is found."),
         ("Valid Anagram", "Easy", "isAnagram", '["str", "str"]',
          "Given two strings s and t, return true if t is an anagram of s, and false otherwise.",
          "string, hash-table", "Count characters in both strings; Compare character frequencies or sort both strings."),
@@ -30,39 +106,18 @@ def run_seed():
         ("Top K Frequent Elements", "Medium", "topKFrequent", '["List[int]", "int"]',
          "Given an integer array nums and an integer k, return the k most frequent elements. You may return the answer in any order.",
          "array, hash-table, heap", "Count element frequencies; Use bucket sort or a min-heap of size K.", "Ignore Order"),
-        ("Product of Array Except Self", "Medium", "productExceptSelf", '["List[int]"]',
-         "Given an integer array nums, return an array answer such that answer[i] is equal to the product of all the elements of nums except nums[i]. Must run in O(n) time.",
-         "array, prefix-sum", "Compute prefix products in one pass; Compute suffix products in a second pass."),
         ("Valid Sudoku", "Medium", "isValidSudoku", '["List[List[str]]"]',
          "Determine if a 9 x 9 Sudoku board is valid. Only the filled cells need to be validated according to the Sudoku rules.",
          "array, hash-table", "Track digits seen in rows, columns, and 3x3 boxes; Use sets of strings like 'row_0_digit_5'."),
         ("Longest Consecutive Sequence", "Medium", "longestConsecutive", '["List[int]"]',
          "Given an unsorted array of integers nums, return the length of the longest consecutive elements sequence. Must run in O(n) time.",
          "array, hash-table", "Insert all numbers into a set; Only start counting a sequence if nums[i] - 1 is not in the set."),
-        ("First Missing Positive", "Hard", "firstMissingPositive", '["List[int]"]',
-         "Given an unsorted integer array nums, return the smallest missing positive integer. Must run in O(n) time and use O(1) auxiliary space.",
-         "array, hash-table", "Place each number at its target index (nums[i] at index nums[i]-1); Scan the array to find the first index mismatch."),
-        ("Valid Palindrome", "Easy", "isPalindrome", '["str"]',
-         "Given a string s, return true if it is a palindrome, or false otherwise. Keep only alphanumeric characters and ignore cases.",
-         "string, two-pointers", "Filter alphanumeric characters; Use two pointers starting at both ends to compare."),
-        ("Unique Email Addresses", "Easy", "numUniqueEmails", '["List[str]"]',
-         "Given an array of strings emails, return the number of unique email addresses that actually receive mails.",
-         "string, hash-table", "Split emails into local and domain names; Remove '.' and ignore everything after '+' in the local name."),
-        ("Intersection of Two Arrays", "Easy", "intersection", '["List[int]", "List[int]"]',
-         "Given two integer arrays nums1 and nums2, return an array of their intersection. Each element must be unique.",
-         "array, hash-table", "Convert both arrays to sets; Use set intersection.", "Ignore Order"),
-        ("Majority Element", "Easy", "majorityElement", '["List[int]"]',
-         "Given an array nums of size n, return the majority element (appears more than n/2 times).",
-         "array, Boyer-Moore", "Use Boyer-Moore Voting Algorithm; Track candidate and count."),
         ("Isomorphic Strings", "Easy", "isIsomorphic", '["str", "str"]',
          "Determine if two strings s and t are isomorphic (characters in s can be replaced to get t).",
          "string, hash-table", "Map characters of s to t and t to s simultaneously."),
         ("Word Pattern", "Easy", "wordPattern", '["str", "str"]',
          "Given a pattern and a string s, find if s follows the same pattern.",
          "string, hash-table", "Split s by spaces; Check bijection between characters in pattern and words in s."),
-        ("Find All Duplicates in an Array", "Medium", "findDuplicates", '["List[int]"]',
-         "Given an integer array nums where integers are in [1, n], find all elements that appear twice.",
-         "array, sign-flip", "Use element values as indices; Flip sign of value at index to mark seen.", "Ignore Order"),
         ("Subarray Sum Equals K", "Medium", "subarraySum", '["List[int]", "int"]',
          "Given an array of integers nums and an integer k, return the total number of subarrays whose sum equals to k.",
          "array, prefix-sum, hash-table", "Use a hash map to store prefix sum counts."),
@@ -76,7 +131,7 @@ def run_seed():
          "Determine whether queries are illuminated on an N x N grid containing active lamps.",
          "array, hash-table, grid", "Store lamp counts in row, col, diag1, diag2 hash maps; Turn off adjacent lamps on query.")
     ]
-    problems_data.extend([("AH", *p) for p in arrays_hashing])
+    problems_data.extend([("HS", *p) for p in hashing])
 
     # 2. TWO POINTERS (15 problems)
     two_pointers = [
@@ -694,48 +749,136 @@ def run_seed():
     ]
     problems_data.extend([("AV", *p) for p in advanced])
 
-    # Let's seed the problems and test cases into the database
-    for category_code, title, diff, func, input_types, desc, concepts, hints, *extra in problems_data:
-        # Check if already exists to prevent duplicate seeding
-        prob_id = f"DSA-{len(Problem.objects.all()) + 1:03d}"
-        
-        # Check if this title is already seeded
-        existing = Problem.objects.filter(title=title).first()
-        if existing:
-            # Already seeded
-            continue
+    from django.db import transaction
+    
+    print("Clearing existing problems and test cases...")
+    TestCase.objects.all().delete()
+    Problem.objects.all().delete()
+    
+    # Categories code map
+    cat_map = {
+        "AR": "Arrays",
+        "HS": "Hashing",
+        "TP": "Two Pointers",
+        "SW": "Sliding Window",
+        "SQ": "Stack & Queue",
+        "BS": "Binary Search",
+        "LL": "Linked List",
+        "TR": "Trees & BST",
+        "HP": "Heap / Priority Queue",
+        "BT": "Backtracking",
+        "GR": "Graphs & BFS/DFS",
+        "GY": "Greedy",
+        "DP": "Dynamic Programming",
+        "AV": "Advanced Patterns"
+    }
+
+    # Indian companies pools
+    service_companies = ["TCS", "Infosys", "Wipro", "Cognizant"]
+    product_companies = ["Zoho", "Flipkart", "Paytm", "Swiggy", "Zomato", "PhonePe", "CRED"]
+
+    with transaction.atomic():
+        print("Seeding base classic problems...")
+        for category_code, title, diff, func, input_types, desc, concepts, hints, *extra in problems_data:
+            prob_id = f"DSA-{len(Problem.objects.all()) + 1:03d}"
             
-        prob = Problem.objects.create(
-            id=prob_id,
-            title=title,
-            difficulty=diff,
-            category=dict([
-                ("AH", "Arrays & Hashing"),
-                ("TP", "Two Pointers"),
-                ("SW", "Sliding Window"),
-                ("SQ", "Stack & Queue"),
-                ("BS", "Binary Search"),
-                ("LL", "Linked List"),
-                ("TR", "Trees & BST"),
-                ("HP", "Heap / Priority Queue"),
-                ("BT", "Backtracking"),
-                ("GR", "Graphs & BFS/DFS"),
-                ("GY", "Greedy"),
-                ("DP", "Dynamic Programming"),
-                ("AV", "Advanced Patterns")
-            ])[category_code],
-            description=desc,
-            concepts=concepts,
-            hints=hints,
-            function_name=func,
-            input_types=input_types
-        )
+            # Select Indian companies based on difficulty and category
+            comp_pool = list(service_companies)
+            if diff in ["Medium", "Hard"]:
+                comp_pool += ["Zoho", "Paytm", "Flipkart"]
+            if category_code in ["GR", "DP", "AV"]:
+                comp_pool += ["Swiggy", "Zomato", "PhonePe", "CRED"]
+            
+            assigned = random.sample(comp_pool, min(len(comp_pool), random.randint(2, 4)))
+            companies_str = ", ".join(assigned)
+
+            prob = Problem.objects.create(
+                id=prob_id,
+                title=title,
+                difficulty=diff,
+                category=cat_map[category_code],
+                description=desc,
+                concepts=concepts,
+                hints=hints,
+                function_name=func,
+                input_types=input_types,
+                companies=companies_str
+            )
+            
+            comp_mode = extra[0] if extra else 'Exact'
+            generate_test_cases_for_problem(prob, func, comp_mode)
+            
+        print("Base seeding completed. Now generating variations to reach 100 problems per topic...")
         
-        # Generate 5-10 test cases for each problem programmatically!
-        comp_mode = extra[0] if extra else 'Exact'
-        generate_test_cases_for_problem(prob, func, comp_mode)
+        # Golden Parent mapping
+        golden_parents_info = {
+            "Arrays": ("Contains Duplicate", "containsDuplicate"),
+            "Hashing": ("Two Sum", "twoSum"),
+            "Two Pointers": ("Valid Palindrome", "isPalindrome"),
+            "Sliding Window": ("Best Time to Buy and Sell Stock", "maxProfit"),
+            "Stack & Queue": ("Valid Parentheses", "isValid"),
+            "Binary Search": ("Binary Search", "search"),
+            "Linked List": ("Reverse Linked List", "reverseList"),
+            "Trees & BST": ("Maximum Depth of Binary Tree", "maxDepth"),
+            "Heap / Priority Queue": ("Kth Largest Element in an Array", "findKthLargest"),
+            "Backtracking": ("Subsets", "subsets"),
+            "Graphs & BFS/DFS": ("Number of Islands", "numIslands"),
+            "Greedy": ("Jump Game", "canJump"),
+            "Dynamic Programming": ("Climbing Stairs", "climbStairs"),
+            "Advanced Patterns": ("Single Number", "singleNumber")
+        }
         
-    print(f"Seeding completed successfully! Total problems: {Problem.objects.count()}")
+        # Loop through all 13 categories
+        for cat_code, cat_name in cat_map.items():
+            base_problems = Problem.objects.filter(category=cat_name)
+            base_count = base_problems.count()
+            needed = 100 - base_count
+            
+            parent_title, parent_func = golden_parents_info[cat_name]
+            parent_problem = base_problems.filter(function_name=parent_func).first()
+            if not parent_problem:
+                parent_problem = base_problems.first()
+                
+            print(f"  Category '{cat_name}': {base_count} base problems. Generating {needed} variations...")
+            
+            for var_idx in range(1, needed + 1):
+                prob_id = f"VAR-{cat_code}-{var_idx:03d}"
+                diff = random.choice(["Easy", "Medium", "Hard"])
+                
+                # Tag appropriate Indian companies
+                comp_pool = list(service_companies)
+                if diff in ["Medium", "Hard"]:
+                    comp_pool += ["Zoho", "Paytm", "Flipkart"]
+                if cat_code in ["GR", "DP", "AV"]:
+                    comp_pool += ["Swiggy", "Zomato", "PhonePe", "CRED"]
+                assigned = random.sample(comp_pool, min(len(comp_pool), random.randint(2, 4)))
+                companies_str = ", ".join(assigned)
+                
+                var_prob = Problem.objects.create(
+                    id=prob_id,
+                    title=f"{parent_problem.title} - Practice Var {var_idx}",
+                    difficulty=diff,
+                    category=cat_name,
+                    description=f"{parent_problem.description}\n\n*(Practice Variation #{var_idx} - Solve this to strengthen your understanding of {cat_name})*",
+                    concepts=parent_problem.concepts,
+                    hints=parent_problem.hints,
+                    function_name=parent_problem.function_name,
+                    input_types=parent_problem.input_types,
+                    companies=companies_str
+                )
+                
+                # Generate exactly 10 test cases using the golden solver
+                cases = generate_10_cases_for_parent(parent_problem.function_name)
+                for inputs_list, expected in cases:
+                    TestCase.objects.create(
+                        problem=var_prob,
+                        inputs=json.dumps(inputs_list),
+                        expected_output=json.dumps(expected),
+                        comparison_mode='Exact'
+                    )
+                add_examples_and_solution(var_prob, cases)
+                    
+        print(f"All seeding completed! Total problems in database: {Problem.objects.count()}")
 
 def generate_test_cases_for_problem(problem, func_name, comp_mode):
     """
@@ -940,14 +1083,25 @@ def generate_test_cases_for_problem(problem, func_name, comp_mode):
     else:
         cases = generate_generic_cases(func_name)
         
+    # Ensure at least 10 testcases by duplicating if needed
+    final_cases = list(cases)
+    if len(final_cases) < 10:
+        original_len = len(final_cases)
+        if original_len > 0:
+            while len(final_cases) < 10:
+                final_cases.append(copy.deepcopy(random.choice(final_cases[:original_len])))
+        else:
+            final_cases = [([[], []], [])] * 10
+            
     # Write to TestCase database models
-    for inputs_list, expected in cases:
+    for inputs_list, expected in final_cases:
         TestCase.objects.create(
             problem=problem,
             inputs=json.dumps(inputs_list),
             expected_output=json.dumps(expected),
             comparison_mode=comp_mode
         )
+    add_examples_and_solution(problem, final_cases)
 
 def generate_generic_cases(func_name):
     """
@@ -1123,3 +1277,322 @@ def generate_generic_cases(func_name):
         ([[]], []),
         ([[0]], [0])
     ]
+
+# Reference solvers for the 15 Golden Parent problems
+def ref_twoSum(nums, target):
+    seen = {}
+    for i, n in enumerate(nums):
+        diff = target - n
+        if diff in seen: return [seen[diff], i]
+        seen[n] = i
+    return []
+
+def ref_containsDuplicate(nums):
+    return len(nums) != len(set(nums))
+
+def ref_isPalindrome(s):
+    clean = [c.lower() for c in s if c.isalnum()]
+    return clean == clean[::-1]
+
+def ref_twoSumSorted(numbers, target):
+    l, r = 0, len(numbers) - 1
+    while l < r:
+        s = numbers[l] + numbers[r]
+        if s == target: return [l + 1, r + 1]
+        elif s < target: l += 1
+        else: r -= 1
+    return []
+
+def ref_maxProfit(prices):
+    if not prices: return 0
+    min_p, max_f = prices[0], 0
+    for p in prices:
+        min_p = min(min_p, p)
+        max_f = max(max_f, p - min_p)
+    return max_f
+
+def ref_lengthOfLongestSubstring(s):
+    seen = {}
+    l = 0
+    max_len = 0
+    for r, c in enumerate(s):
+        if c in seen and seen[c] >= l:
+            l = seen[c] + 1
+        seen[c] = r
+        max_len = max(max_len, r - l + 1)
+    return max_len
+
+def ref_isValid(s):
+    stack = []
+    mapping = {")": "(", "}": "{", "]": "["}
+    for char in s:
+        if char in mapping:
+            top = stack.pop() if stack else '#'
+            if mapping[char] != top: return False
+        else:
+            stack.append(char)
+    return not stack
+
+def ref_search(nums, target):
+    try: return nums.index(target)
+    except ValueError: return -1
+
+def ref_reverseList(lst):
+    return list(reversed(lst))
+
+def ref_mergeTwoLists(l1, l2):
+    return sorted(l1 + l2)
+
+def ref_maxDepth(L):
+    def get_depth(idx=0):
+        if idx >= len(L) or L[idx] is None: return 0
+        return 1 + max(get_depth(2*idx+1), get_depth(2*idx+2))
+    return get_depth(0)
+
+def ref_invertTree(L):
+    from practice.engine.structures import list_to_binary_tree, binary_tree_to_list
+    def invert(node):
+        if not node: return None
+        node.left, node.right = invert(node.right), invert(node.left)
+        return node
+    tree = list_to_binary_tree(L)
+    inverted = invert(tree)
+    return binary_tree_to_list(inverted)
+
+def ref_topKFrequent(nums, k):
+    from collections import Counter
+    counts = Counter(nums)
+    return [item[0] for item in counts.most_common(k)]
+
+def ref_subsets(nums):
+    res = [[]]
+    for n in nums:
+        res += [curr + [n] for curr in res]
+    return res
+
+def ref_numIslands(grid):
+    if not grid: return 0
+    r, c = len(grid), len(grid[0])
+    visited = set()
+    count = 0
+    def dfs(i, j):
+        if i<0 or i>=r or j<0 or j>=c or grid[i][j]=='0' or (i,j) in visited: return
+        visited.add((i,j))
+        dfs(i+1, j)
+        dfs(i-1, j)
+        dfs(i, j+1)
+        dfs(i, j-1)
+    for i in range(r):
+        for j in range(c):
+            if grid[i][j] == '1' and (i,j) not in visited:
+                dfs(i, j)
+                count += 1
+    return count
+
+def ref_canJump(nums):
+    reach = 0
+    for i, n in enumerate(nums):
+        if i > reach: return False
+        reach = max(reach, i + n)
+    return True
+
+def ref_singleNumber(nums):
+    res = 0
+    for n in nums: res ^= n
+    return res
+
+def ref_findKthLargest(nums, k):
+    return sorted(nums, reverse=True)[k-1]
+
+def ref_climbStairs(n):
+    if n <= 2: return n
+    a, b = 1, 2
+    for _ in range(3, n + 1):
+        a, b = b, a + b
+    return b
+
+GOLDEN_SOLVERS = {
+    "twoSum": ref_twoSum,
+    "containsDuplicate": ref_containsDuplicate,
+    "isPalindrome": ref_isPalindrome,
+    "twoSumSorted": ref_twoSumSorted,
+    "maxProfit": ref_maxProfit,
+    "lengthOfLongestSubstring": ref_lengthOfLongestSubstring,
+    "isValid": ref_isValid,
+    "search": ref_search,
+    "reverseList": ref_reverseList,
+    "mergeTwoLists": ref_mergeTwoLists,
+    "maxDepth": ref_maxDepth,
+    "invertTree": ref_invertTree,
+    "topKFrequent": ref_topKFrequent,
+    "subsets": ref_subsets,
+    "numIslands": ref_numIslands,
+    "canJump": ref_canJump,
+    "singleNumber": ref_singleNumber,
+    "findKthLargest": ref_findKthLargest,
+    "climbStairs": ref_climbStairs
+}
+
+def generate_inputs(func_name, size_type):
+    if func_name == "twoSum" or func_name == "twoSumSorted":
+        if size_type == "small":
+            nums = sorted([random.randint(1, 100) for _ in range(10)])
+            a, b = random.sample(nums, 2)
+            return [nums, a + b]
+        elif size_type == "boundary":
+            return [[5, 10], 15]
+        else: # large
+            nums = sorted([random.randint(1, 10000) for _ in range(1500)])
+            return [nums, nums[-1] + nums[-2]]
+    elif func_name == "containsDuplicate":
+        if size_type == "small":
+            return [[random.randint(1, 20) for _ in range(10)]]
+        elif size_type == "boundary":
+            return [[1]]
+        else: # large
+            nums = list(range(2000))
+            if random.random() < 0.5:
+                nums.append(0)
+            return [nums]
+    elif func_name == "isPalindrome":
+        if size_type == "small":
+            return ["A man, a plan, a canal: Panama"]
+        elif size_type == "boundary":
+            return ["a"]
+        else: # large
+            base = "".join(random.choice("abcdefghijklmnopqrstuvwxyz") for _ in range(400))
+            return [base + base[::-1]]
+    elif func_name == "maxProfit":
+        if size_type == "small":
+            return [[random.randint(1, 100) for _ in range(8)]]
+        elif size_type == "boundary":
+            return [[10]]
+        else: # large
+            return [[random.randint(1, 1000) for _ in range(1500)]]
+    elif func_name == "lengthOfLongestSubstring":
+        if size_type == "small":
+            return ["abcabcbb"]
+        elif size_type == "boundary":
+            return ["a"]
+        else: # large
+            return ["".join(random.choice("abcdefghijklmnopqrstuvwxyz") for _ in range(1500))]
+    elif func_name == "isValid":
+        if size_type == "small":
+            return ["()[]{}"]
+        elif size_type == "boundary":
+            return ["["]
+        else: # large
+            return ["{" * 250 + "}" * 250]
+    elif func_name == "search":
+        if size_type == "small":
+            nums = sorted([random.randint(1, 100) for _ in range(10)])
+            target = random.choice(nums)
+            return [nums, target]
+        elif size_type == "boundary":
+            return [[1], 1]
+        else: # large
+            nums = sorted([random.randint(1, 10000) for _ in range(1500)])
+            target = random.choice(nums)
+            return [nums, target]
+    elif func_name == "reverseList":
+        if size_type == "small":
+            return [[random.randint(1, 100) for _ in range(6)]]
+        elif size_type == "boundary":
+            return [[99]]
+        else: # large
+            return [[random.randint(1, 1000) for _ in range(800)]]
+    elif func_name == "mergeTwoLists":
+        if size_type == "small":
+            return [sorted([random.randint(1, 100) for _ in range(5)]), sorted([random.randint(1, 100) for _ in range(5)])]
+        elif size_type == "boundary":
+            return [[1], []]
+        else: # large
+            return [sorted([random.randint(1, 1000) for _ in range(800)]), sorted([random.randint(1, 1000) for _ in range(800)])]
+    elif func_name == "maxDepth" or func_name == "invertTree":
+        if size_type == "small":
+            return [[4, 2, 7, 1, 3, 6, 9]]
+        elif size_type == "boundary":
+            return [[1]]
+        else: # large
+            lst = [random.randint(1, 100) if random.random() < 0.8 else None for _ in range(127)]
+            lst[0] = 50
+            return [lst]
+    elif func_name == "topKFrequent":
+        if size_type == "small":
+            return [[1,1,1,2,2,3], 2]
+        elif size_type == "boundary":
+            return [[1], 1]
+        else: # large
+            nums = [random.randint(1, 100) for _ in range(2000)]
+            return [nums, 10]
+    elif func_name == "subsets":
+        if size_type == "small":
+            return [[1, 2, 3]]
+        elif size_type == "boundary":
+            return [[]]
+        else: # large
+            return [list(range(10))]
+    elif func_name == "numIslands":
+        if size_type == "small":
+            return [[
+                ["1","1","0","0","0"],
+                ["1","1","0","0","0"],
+                ["0","0","1","0","0"],
+                ["0","0","0","1","1"]
+            ]]
+        elif size_type == "boundary":
+            return [[["0"]]]
+        else: # large
+            grid = [[random.choice(["0", "1"]) for _ in range(40)] for _ in range(40)]
+            return [grid]
+    elif func_name == "canJump":
+        if size_type == "small":
+            return [[2, 3, 1, 1, 4]]
+        elif size_type == "boundary":
+            return [[2, 0]]
+        else: # large
+            return [[random.randint(0, 4) for _ in range(1500)]]
+    elif func_name == "singleNumber":
+        if size_type == "small":
+            return [[2, 2, 1]]
+        elif size_type == "boundary":
+            return [[5]]
+        else: # large
+            nums = list(range(1, 1000)) * 2
+            nums.append(9999)
+            random.shuffle(nums)
+            return [nums]
+    elif func_name == "findKthLargest":
+        if size_type == "small":
+            return [[3, 2, 1, 5, 6, 4], 2]
+        elif size_type == "boundary":
+            return [[1], 1]
+        else: # large
+            nums = [random.randint(1, 10000) for _ in range(1500)]
+            return [nums, 100]
+    elif func_name == "climbStairs":
+        if size_type == "small":
+            return [5]
+        elif size_type == "boundary":
+            return [1]
+        else: # large
+            return [35]
+    return [[1, 2, 3]]
+
+def generate_10_cases_for_parent(func_name):
+    solver = GOLDEN_SOLVERS[func_name]
+    cases = []
+    for _ in range(5):
+        inputs = generate_inputs(func_name, "small")
+        expected = solver(*inputs)
+        cases.append((inputs, expected))
+    for _ in range(3):
+        inputs = generate_inputs(func_name, "boundary")
+        expected = solver(*inputs)
+        cases.append((inputs, expected))
+    for _ in range(2):
+        inputs = generate_inputs(func_name, "large")
+        expected = solver(*inputs)
+        cases.append((inputs, expected))
+    return cases
+

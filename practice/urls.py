@@ -10,5 +10,9 @@ urlpatterns = [
     path('practice/<str:problem_id>/run/', views.run_code, name='run_code'),
     path('practice/<str:problem_id>/submit/', views.submit_code, name='submit_code'),
     path('roadmap/', views.roadmap, name='roadmap'),
+    path('roadmap/toggle_optin/', views.toggle_roadmap_optin, name='toggle_optin'),
+    path('goals/create/', views.create_goal, name='create_goal'),
+    path('goals/delete/<int:goal_id>/', views.delete_goal, name='delete_goal'),
+    path('company-prep/', views.company_prep, name='company_prep'),
     path('help/', views.help_page, name='help'),
 ]

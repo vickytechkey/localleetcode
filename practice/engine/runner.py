@@ -3,10 +3,78 @@ import json
 import traceback
 import sys
 import copy
+import io
+from contextlib import redirect_stdout
 from practice.engine.structures import (
     ListNode, TreeNode, list_to_linked_list, linked_list_to_list,
     list_to_binary_tree, binary_tree_to_list
 )
+
+class TimeoutException(Exception):
+    pass
+
+def execute_with_trace_and_timeout(func, args, timeout=2.0, max_steps=100):
+    start_time = time.perf_counter()
+    steps = []
+    
+    def tracer(frame, event, arg):
+        if time.perf_counter() - start_time > timeout:
+            raise TimeoutException("Time Limit Exceeded (Possible Infinite Loop)")
+        
+        # Enforce tracing of user function (ignore frame if it's external libraries like structures.py)
+        if event in ('line', 'call') and len(steps) < max_steps:
+            # Capture local variable states
+            local_vars = {}
+            for k, v in frame.f_locals.items():
+                if not k.startswith('__') and not callable(v):
+                    try:
+                        # Avoid huge string representations for very large objects
+                        v_str = str(v)
+                        if len(v_str) > 100:
+                            v_str = v_str[:97] + "..."
+                        local_vars[k] = v_str
+                    except Exception:
+                        local_vars[k] = "<unserializable>"
+            
+            line_no = frame.f_lineno
+            steps.append({
+                "line": line_no,
+                "event": event,
+                "locals": local_vars
+            })
+        return tracer
+
+    old_trace = sys.gettrace()
+    sys.settrace(tracer)
+    
+    stdout_io = io.StringIO()
+    exception = None
+    actual_val = None
+    duration_ms = 0
+    tb_str = None
+    
+    try:
+        t_start = time.perf_counter()
+        with redirect_stdout(stdout_io):
+            actual_val = func(*args)
+        t_end = time.perf_counter()
+        duration_ms = int((t_end - t_start) * 1000)
+    except Exception as e:
+        exception = e
+        tb_str = traceback.format_exc()
+    finally:
+        sys.settrace(old_trace)
+        
+    captured_stdout = stdout_io.getvalue()
+    
+    return {
+        "actual_val": actual_val,
+        "duration_ms": duration_ms,
+        "stdout": captured_stdout,
+        "exception": exception,
+        "traceback": tb_str,
+        "steps": steps
+    }
 
 def run_solution(problem, user_code):
     """
@@ -22,7 +90,6 @@ def run_solution(problem, user_code):
     # Compile the user's code
     namespace = {}
     try:
-        # Include custom classes in namespace so user can use them
         namespace['ListNode'] = ListNode
         namespace['TreeNode'] = TreeNode
         
@@ -32,7 +99,7 @@ def run_solution(problem, user_code):
         if func_name not in namespace or not callable(namespace[func_name]):
             return {
                 "status": "ERROR",
-                "message": f"Compilation Error: Could not find function '{func_name}' in your code. Please make sure the function is defined exactly as requested."
+                "message": f"Compilation Error: Could not find function '{func_name}' in your code."
             }
         solve_func = namespace[func_name]
     except Exception as e:
@@ -46,24 +113,14 @@ def run_solution(problem, user_code):
     all_passed = True
     total_time_ms = 0
     
-    # Run test cases
     for idx, tc in enumerate(test_cases):
         try:
-            # Parse inputs (a JSON array of arguments, e.g. [[2, 7, 11, 15], 9])
             raw_args = json.loads(tc.inputs)
             expected_val = json.loads(tc.expected_output)
-            
-            # Deep copy to ensure user mutations don't affect original test cases
             args = copy.deepcopy(raw_args)
             
-            # Convert inputs based on category
             category = problem.category.lower()
             converted_args = []
-            
-            # Helper to check if a type needs conversion
-            # We convert list inputs to ListNode or TreeNode if the category matches
-            # Let's inspect input_types schema if it exists
-            # We can define input_types as a JSON list, e.g. ["ListNode", "int"]
             try:
                 type_hints = json.loads(problem.input_types)
             except Exception:
@@ -82,15 +139,15 @@ def run_solution(problem, user_code):
                 else:
                     converted_args.append(arg)
             
-            # Run the user's function
-            t_start = time.perf_counter()
-            actual_val = solve_func(*converted_args)
-            t_end = time.perf_counter()
+            run_result = execute_with_trace_and_timeout(solve_func, converted_args, timeout=2.0)
             
-            duration_ms = int((t_end - t_start) * 1000)
+            if run_result["exception"]:
+                raise run_result["exception"]
+                
+            actual_val = run_result["actual_val"]
+            duration_ms = run_result["duration_ms"]
             total_time_ms += duration_ms
             
-            # Convert actual output back to standard Python types for serialization and comparison
             if isinstance(actual_val, ListNode):
                 actual_serialized = linked_list_to_list(actual_val)
             elif isinstance(actual_val, TreeNode):
@@ -100,7 +157,6 @@ def run_solution(problem, user_code):
             else:
                 actual_serialized = actual_val
                 
-            # Perform comparison
             passed = False
             comp_mode = tc.comparison_mode or 'Exact'
             
@@ -109,11 +165,10 @@ def run_solution(problem, user_code):
                     try:
                         passed = sorted(actual_serialized) == sorted(expected_val)
                     except TypeError:
-                        # Fallback if un-sortable
                         passed = len(actual_serialized) == len(expected_val) and all(x in expected_val for x in actual_serialized)
                 else:
                     passed = actual_serialized == expected_val
-            else: # Exact
+            else:
                 passed = actual_serialized == expected_val
                 
             if not passed:
@@ -126,11 +181,14 @@ def run_solution(problem, user_code):
                 "inputs_preview": raw_args,
                 "actual": actual_serialized,
                 "expected": expected_val,
-                "message": "Passed" if passed else "Mismatch"
+                "message": "Passed" if passed else "Mismatch",
+                "stdout": run_result["stdout"],
+                "steps": run_result["steps"]
             })
             
         except Exception as e:
             all_passed = False
+            tb = run_result.get("traceback") if 'run_result' in locals() else traceback.format_exc()
             results.append({
                 "test_case_id": tc.id,
                 "passed": False,
@@ -139,7 +197,9 @@ def run_solution(problem, user_code):
                 "actual": None,
                 "expected": tc.expected_output,
                 "message": f"Runtime Error: {str(e)}",
-                "traceback": traceback.format_exc()
+                "traceback": tb,
+                "stdout": run_result.get("stdout", "") if 'run_result' in locals() else "",
+                "steps": run_result.get("steps", []) if 'run_result' in locals() else []
             })
             
     status = "PASS" if all_passed else "FAIL"
@@ -186,11 +246,9 @@ def run_solution_stream(problem, user_code):
     all_passed = True
     total_time_ms = 0
     
-    # Run test cases
     for idx, tc in enumerate(test_cases):
         percentage = int((idx / total) * 100)
         
-        # Parse inputs for preview
         try:
             inputs_preview = json.loads(tc.inputs)
         except Exception:
@@ -204,6 +262,7 @@ def run_solution_stream(problem, user_code):
             "inputs_preview": inputs_preview
         }
         
+        run_result = None
         try:
             raw_args = json.loads(tc.inputs)
             expected_val = json.loads(tc.expected_output)
@@ -229,11 +288,13 @@ def run_solution_stream(problem, user_code):
                 else:
                     converted_args.append(arg)
             
-            t_start = time.perf_counter()
-            actual_val = solve_func(*converted_args)
-            t_end = time.perf_counter()
+            run_result = execute_with_trace_and_timeout(solve_func, converted_args, timeout=2.0)
             
-            duration_ms = int((t_end - t_start) * 1000)
+            if run_result["exception"]:
+                raise run_result["exception"]
+                
+            actual_val = run_result["actual_val"]
+            duration_ms = run_result["duration_ms"]
             total_time_ms += duration_ms
             
             if isinstance(actual_val, ListNode):
@@ -269,11 +330,14 @@ def run_solution_stream(problem, user_code):
                 "inputs_preview": raw_args,
                 "actual": actual_serialized,
                 "expected": expected_val,
-                "message": "Passed" if passed else "Mismatch"
+                "message": "Passed" if passed else "Mismatch",
+                "stdout": run_result["stdout"],
+                "steps": run_result["steps"]
             })
             
         except Exception as e:
             all_passed = False
+            tb = run_result.get("traceback") if (run_result and run_result.get("traceback")) else traceback.format_exc()
             results.append({
                 "test_case_id": tc.id,
                 "passed": False,
@@ -282,7 +346,9 @@ def run_solution_stream(problem, user_code):
                 "actual": None,
                 "expected": tc.expected_output,
                 "message": f"Runtime Error: {str(e)}",
-                "traceback": traceback.format_exc()
+                "traceback": tb,
+                "stdout": run_result["stdout"] if (run_result and "stdout" in run_result) else "",
+                "steps": run_result["steps"] if (run_result and "steps" in run_result) else []
             })
             
     # Yield final result
@@ -292,4 +358,3 @@ def run_solution_stream(problem, user_code):
         "results": results,
         "total_time_ms": total_time_ms
     }
-

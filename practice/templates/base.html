@@ -37,6 +37,11 @@
                     <span>🗺️</span> Learning Roadmap
                 </a>
             </li>
+            <li class="nav-item {% if request.resolver_match.view_name == 'practice:company_prep' %}active{% endif %}">
+                <a href="{% url 'practice:company_prep' %}">
+                    <span>🏢</span> Company Prep
+                </a>
+            </li>
             <li class="nav-item {% if request.resolver_match.view_name == 'practice:help' %}active{% endif %}">
                 <a href="{% url 'practice:help' %}">
                     <span>📖</span> Understand Me

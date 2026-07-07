@@ -6,7 +6,7 @@
 {% block content %}
 <div class="dashboard-header">
     <h1>⚡ Practice Dashboard</h1>
-    <p style="color: var(--text-secondary); margin-bottom: 32px;">Track your DSA coding streaks and problem patterns step by step.</p>
+    <p style="color: var(--text-secondary); margin-bottom: 32px;">Track your DSA coding streaks, set custom target goals, and monitor your topic expert scores.</p>
 </div>
 
 <!-- Metrics Cards -->
@@ -50,17 +50,20 @@
 
 <!-- Category Breakdown & Goals -->
 <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-top: 32px;">
-    <!-- Topic Progress -->
+    <!-- Topic Progress & Expert Score -->
     <div class="stat-card" style="flex: 2; min-width: 300px;">
-        <h3 style="font-size: 1.2rem; margin-bottom: 16px;">📚 Topic Breakdown</h3>
+        <h3 style="font-size: 1.2rem; margin-bottom: 16px;">📚 Topic Breakdown & Expert Score</h3>
         <div style="display: flex; flex-direction: column; gap: 16px;">
             {% for cat in category_stats %}
             <div>
                 <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 6px;">
                     <span style="font-weight: 500;">{{ cat.name }}</span>
-                    <span style="color: var(--text-secondary);">{{ cat.solved }} / {{ cat.total }} ({{ cat.progress_pct }}%)</span>
+                    <div>
+                        <span style="color: var(--color-medium); font-weight: 600; margin-right: 12px;">🏆 Expert Score: {{ cat.expert_score }}/100</span>
+                        <span style="color: var(--text-secondary);">{{ cat.solved }} / {{ cat.total }} ({{ cat.progress_pct }}%)</span>
+                    </div>
                 </div>
-                <div style="height: 6px; background-color: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden;">
+                <div style="height: 6px; background-color: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; display: flex;">
                     <div style="height: 100%; width: {{ cat.progress_pct }}%; background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%); border-radius: 3px;"></div>
                 </div>
             </div>
@@ -68,14 +71,93 @@
         </div>
     </div>
 
-    <!-- Active Goals -->
-    <div class="stat-card" style="flex: 1; min-width: 300px; display: flex; flex-direction: column;">
-        <h3 style="font-size: 1.2rem; margin-bottom: 16px;">🎯 Daily Mission</h3>
-        <div style="background: rgba(255, 255, 255, 0.02); border: 1px dashed var(--border-color); border-radius: 12px; padding: 20px; text-align: center; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px;">
-            <div style="font-size: 2.5rem;">🔥</div>
-            <h4 style="margin: 0; font-size: 1.1rem;">Keep the Streak Alive!</h4>
-            <p style="font-size: 0.9rem; color: var(--text-secondary); margin: 0; line-height: 1.5;">Solve at least one problem today to advance your daily coding streak. Use the Roadmap to pick your next challenge.</p>
-            <a href="{% url 'practice:roadmap' %}" class="btn btn-primary" style="text-decoration: none; margin-top: 8px;">Explore Roadmap</a>
+    <!-- Goals Management Section -->
+    <div class="stat-card" style="flex: 1.2; min-width: 300px; display: flex; flex-direction: column; gap: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="font-size: 1.2rem; margin: 0;">🎯 Custom Target Goals</h3>
+            <button onclick="toggleGoalForm()" class="btn btn-primary" style="padding: 6px 12px; font-size: 0.85rem;">+ Add Goal</button>
+        </div>
+
+        <!-- Add Goal Inline Form (hidden initially) -->
+        <div id="goal-form-container" style="display: none; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
+            <form action="{% url 'practice:create_goal' %}" method="POST" style="display: flex; flex-direction: column; gap: 12px;">
+                {% csrf_token %}
+                <div>
+                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">Goal Type</label>
+                    <select name="type" class="select-filter" style="width: 100%; padding: 8px;">
+                        <option value="Daily">Daily</option>
+                        <option value="Weekly">Weekly</option>
+                        <option value="Monthly">Monthly</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">Target Problems Count</label>
+                    <input type="number" name="target" min="1" value="3" class="search-input" style="width: 100%; padding: 8px;" required>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">Target Difficulty (Optional)</label>
+                    <select name="difficulty" class="select-filter" style="width: 100%; padding: 8px;">
+                        <option value="">Any Difficulty</option>
+                        <option value="Easy">Easy</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Hard">Hard</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">Target Topic (Optional)</label>
+                    <select name="category" class="select-filter" style="width: 100%; padding: 8px;">
+                        <option value="">Any Topic</option>
+                        {% for cat in all_categories %}
+                        <option value="{{ cat }}">{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
+                    <button type="button" onclick="toggleGoalForm()" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.85rem;">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="padding: 6px 12px; font-size: 0.85rem;">Save Goal</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Goals List -->
+        <div style="display: flex; flex-direction: column; gap: 12px; overflow-y: auto; max-height: 400px; padding-right: 4px;">
+            {% if active_goals %}
+                {% for goal in active_goals %}
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; position: relative;">
+                    <form action="{% url 'practice:delete_goal' goal.id %}" method="POST" style="position: absolute; top: 12px; right: 12px;">
+                        {% csrf_token %}
+                        <button type="submit" style="background: none; border: none; color: var(--color-fail); cursor: pointer; font-size: 0.9rem;" title="Delete Goal">🗑️</button>
+                    </form>
+                    
+                    <div style="font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; padding-right: 20px;">
+                        🎯 {{ goal.type }} Goal (Target: {{ goal.target }})
+                    </div>
+                    
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 12px;">
+                        <span>Range: {{ goal.start_date }} to {{ goal.end_date }}</span>
+                        {% if goal.difficulty or goal.category %}
+                        <div style="margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap;">
+                            {% if goal.difficulty %}<span class="badge {% if goal.difficulty == 'Easy' %}easy{% elif goal.difficulty == 'Medium' %}medium{% else %}hard{% endif %}" style="font-size: 0.65rem; padding: 1px 6px;">{{ goal.difficulty }}</span>{% endif %}
+                            {% if goal.category %}<span class="badge completed" style="font-size: 0.65rem; padding: 1px 6px; background-color: var(--color-primary-glow); color: var(--color-primary);">{{ goal.category }}</span>{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 0.85rem; margin-bottom: 6px;">
+                        <span>Progress (Created after start):</span>
+                        <strong style="color: var(--color-success);">{{ goal.calculated_progress }} / {{ goal.target }}</strong>
+                    </div>
+                    <div style="height: 6px; background-color: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden;">
+                        <div style="height: 100%; width: {% widthratio goal.calculated_progress goal.target 100 %}%; background: var(--color-success); border-radius: 3px;"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div style="background: rgba(255, 255, 255, 0.02); border: 1px dashed var(--border-color); border-radius: 12px; padding: 24px; text-align: center; color: var(--text-secondary);">
+                    <div style="font-size: 2rem; margin-bottom: 8px;">🎯</div>
+                    No active goals. Create a custom target goal to focus your practice!
+                </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -83,6 +165,11 @@
 
 {% block extra_js %}
 <script>
+    function toggleGoalForm() {
+        const container = document.getElementById('goal-form-container');
+        container.style.display = container.style.display === 'none' ? 'block' : 'none';
+    }
+
     // Parse activity data from backend
     const activityData = JSON.parse('{{ activity_map_json|escapejs }}');
     
@@ -92,8 +179,6 @@
     const startDate = new Date();
     startDate.setDate(today.getDate() - 365);
     
-    // We want a Grid grouped by weeks. Let's create cells for each day from startDate to today.
-    // To align properly by weekdays (0-6, Mon-Sun), we can render the cells chronologically.
     for (let d = new Date(startDate); d <= today; d.setDate(d.getDate() + 1)) {
         const dateStr = d.toISOString().split('T')[0];
         const act = activityData[dateStr] || {attempts: 0, solved: 0};

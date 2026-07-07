@@ -5,11 +5,10 @@ from django.db.models import Count, Q
 from django.utils import timezone
 import json
 import datetime
-from practice.models import Problem, TestCase, Submission, DailyActivity, Goal
+from practice.models import Problem, TestCase, Submission, DailyActivity, Goal, RoadmapOptIn
 from practice.engine.runner import run_solution, run_solution_stream
 
 def dashboard(request):
-    # Calculations for streak
     today = datetime.date.today()
     
     # Solved problem IDs
@@ -59,20 +58,37 @@ def dashboard(request):
     activity_map = {act.date.strftime("%Y-%m-%d"): {"attempts": act.attempts, "solved": act.solved} for act in activities_all}
     
     # Goals
-    active_goals = Goal.objects.all()
+    active_goals = Goal.objects.all().order_by('-created_at')
     
-    # Category statistics
+    # Category statistics (with Expert Score)
     category_stats = []
     categories = Problem.objects.values_list('category', flat=True).distinct()
     for cat in categories:
-        cat_total = Problem.objects.filter(category=cat).count()
-        cat_solved = Problem.objects.filter(category=cat, id__in=solved_problems_ids).count()
+        cat_probs = Problem.objects.filter(category=cat)
+        cat_total = cat_probs.count()
+        cat_solved_qs = cat_probs.filter(id__in=solved_problems_ids)
+        cat_solved = cat_solved_qs.count()
         progress_pct = round((cat_solved / cat_total * 100), 1) if cat_total > 0 else 0
+        
+        # Calculate Expert Score
+        easy_total = cat_probs.filter(difficulty='Easy').count()
+        medium_total = cat_probs.filter(difficulty='Medium').count()
+        hard_total = cat_probs.filter(difficulty='Hard').count()
+        
+        easy_solved = cat_solved_qs.filter(difficulty='Easy').count()
+        medium_solved = cat_solved_qs.filter(difficulty='Medium').count()
+        hard_solved = cat_solved_qs.filter(difficulty='Hard').count()
+        
+        max_points = easy_total * 0.5 + medium_total * 1.0 + hard_total * 2.0
+        solved_points = easy_solved * 0.5 + medium_solved * 1.0 + hard_solved * 2.0
+        expert_score = min(100, round((solved_points / max_points * 100))) if max_points > 0 else 0
+        
         category_stats.append({
             "name": cat,
             "solved": cat_solved,
             "total": cat_total,
-            "progress_pct": progress_pct
+            "progress_pct": progress_pct,
+            "expert_score": expert_score
         })
         
     context = {
@@ -84,9 +100,47 @@ def dashboard(request):
         "longest_streak": longest_streak,
         "activity_map_json": json.dumps(activity_map),
         "active_goals": active_goals,
-        "category_stats": category_stats
+        "category_stats": category_stats,
+        "all_categories": categories
     }
     return render(request, "dashboard.html", context)
+
+@csrf_exempt
+def create_goal(request):
+    if request.method == "POST":
+        goal_type = request.POST.get("type", "Daily")
+        target = int(request.POST.get("target", 1))
+        difficulty = request.POST.get("difficulty", "") or None
+        category = request.POST.get("category", "") or None
+        
+        today = datetime.date.today()
+        if goal_type == "Daily":
+            start_date = today
+            end_date = today
+        elif goal_type == "Weekly":
+            start_date = today
+            end_date = today + datetime.timedelta(days=6)
+        else: # Monthly
+            start_date = today
+            end_date = today + datetime.timedelta(days=30)
+            
+        Goal.objects.create(
+            type=goal_type,
+            target=target,
+            start_date=start_date,
+            end_date=end_date,
+            difficulty=difficulty,
+            category=category,
+            created_at=timezone.now()
+        )
+    return redirect('practice:dashboard')
+
+@csrf_exempt
+def delete_goal(request, goal_id):
+    if request.method == "POST":
+        goal = get_object_or_404(Goal, id=goal_id)
+        goal.delete()
+    return redirect('practice:dashboard')
 
 def problems_bank(request):
     query = request.GET.get('q', '')
@@ -103,7 +157,6 @@ def problems_bank(request):
     if category:
         problems = problems.filter(category=category)
         
-    # Get completed problems for the user
     solved_ids = set(Submission.objects.filter(status='PASS').values_list('problem_id', flat=True).distinct())
     attempted_ids = set(Submission.objects.values_list('problem_id', flat=True).distinct())
     
@@ -140,7 +193,6 @@ def practice_sandbox(request, problem_id):
     problem = get_object_or_404(Problem, id=problem_id)
     submissions = Submission.objects.filter(problem=problem).order_by('-timestamp')
     
-    # Default code template
     default_code = f"class Solution:\n    def {problem.function_name}(self):\n        pass\n"
     if problem.input_types:
         try:
@@ -150,7 +202,6 @@ def practice_sandbox(request, problem_id):
         except Exception:
             pass
             
-    # Load last submission code if exists
     if submissions.exists():
         default_code = submissions.first().code
         
@@ -235,37 +286,119 @@ def submit_code(request, problem_id):
 def roadmap(request):
     solved_problems_ids = set(Submission.objects.filter(status='PASS').values_list('problem_id', flat=True).distinct())
     
-    categories = [
-        "Arrays & Hashing", "Two Pointers", "Sliding Window", "Stack & Queue",
-        "Binary Search", "Linked List", "Trees & BST", "Heap / Priority Queue",
-        "Backtracking", "Graphs & BFS/DFS", "Greedy", "Dynamic Programming", "Advanced Patterns"
-    ]
+    # 5 structured levels
+    levels_config = {
+        "Beginner": ["Arrays", "Hashing", "Two Pointers", "Stack & Queue"],
+        "Intermediate": ["Sliding Window", "Binary Search", "Linked List"],
+        "Advanced": ["Trees & BST", "Heap / Priority Queue", "Backtracking"],
+        "Expert": ["Graphs & BFS/DFS", "Greedy"],
+        "Master": ["Dynamic Programming", "Advanced Patterns"]
+    }
     
-    roadmap_data = []
-    for cat in categories:
-        probs = Problem.objects.filter(category=cat)
-        if not probs.exists():
-            continue
+    roadmap_levels = []
+    
+    for lvl_name, categories in levels_config.items():
+        is_opted_in = RoadmapOptIn.objects.filter(level_name=lvl_name).exists()
+        lvl_total = 0
+        lvl_solved = 0
+        categories_data = []
         
-        total = probs.count()
-        solved = probs.filter(id__in=solved_problems_ids).count()
-        progress_pct = round((solved / total * 100), 1) if total > 0 else 0
-        
-        for p in probs:
-            p.is_solved = p.id in solved_problems_ids
+        for cat in categories:
+            probs = Problem.objects.filter(category=cat)
+            total = probs.count()
+            solved = probs.filter(id__in=solved_problems_ids).count()
+            progress_pct = round((solved / total * 100), 1) if total > 0 else 0
             
-        roadmap_data.append({
-            "category": cat,
-            "solved": solved,
-            "total": total,
-            "progress_pct": progress_pct,
-            "problems": probs
+            # Calculate Expert Score for this category
+            easy_total = probs.filter(difficulty='Easy').count()
+            medium_total = probs.filter(difficulty='Medium').count()
+            hard_total = probs.filter(difficulty='Hard').count()
+            
+            easy_solved = probs.filter(difficulty='Easy', id__in=solved_problems_ids).count()
+            medium_solved = probs.filter(difficulty='Medium', id__in=solved_problems_ids).count()
+            hard_solved = probs.filter(difficulty='Hard', id__in=solved_problems_ids).count()
+            
+            max_points = easy_total * 0.5 + medium_total * 1.0 + hard_total * 2.0
+            solved_points = easy_solved * 0.5 + medium_solved * 1.0 + hard_solved * 2.0
+            expert_score = min(100, round((solved_points / max_points * 100))) if max_points > 0 else 0
+            
+            lvl_total += total
+            lvl_solved += solved
+            
+            # Decorate problems with solved flag
+            for p in probs:
+                p.is_solved = p.id in solved_problems_ids
+                
+            categories_data.append({
+                "category": cat,
+                "solved": solved,
+                "total": total,
+                "progress_pct": progress_pct,
+                "expert_score": expert_score,
+                "problems": probs
+            })
+            
+        lvl_progress = round((lvl_solved / lvl_total * 100), 1) if lvl_total > 0 else 0
+        
+        roadmap_levels.append({
+            "name": lvl_name,
+            "is_opted_in": is_opted_in,
+            "total": lvl_total,
+            "solved": lvl_solved,
+            "progress_pct": lvl_progress,
+            "categories": categories_data
         })
         
     context = {
-        "roadmap": roadmap_data
+        "roadmap_levels": roadmap_levels
     }
     return render(request, "roadmap.html", context)
+
+@csrf_exempt
+def toggle_roadmap_optin(request):
+    if request.method == "POST":
+        level_name = request.POST.get("level_name")
+        opted_in = request.POST.get("opted_in") == "true"
+        
+        if opted_in:
+            RoadmapOptIn.objects.get_or_create(level_name=level_name)
+        else:
+            RoadmapOptIn.objects.filter(level_name=level_name).delete()
+            
+        return JsonResponse({"status": "SUCCESS"})
+    return JsonResponse({"status": "ERROR", "message": "Invalid request method."})
+
+def company_prep(request):
+    solved_problems_ids = set(Submission.objects.filter(status='PASS').values_list('problem_id', flat=True).distinct())
+    
+    target_company = request.GET.get('company', 'Zoho')
+    difficulty = request.GET.get('difficulty', '')
+    
+    # Filter problems asked by target company
+    # Using icontains or word matching on Problem.companies
+    problems = Problem.objects.filter(companies__icontains=target_company)
+    if difficulty:
+        problems = problems.filter(difficulty=difficulty)
+        
+    total_count = problems.count()
+    solved_count = problems.filter(id__in=solved_problems_ids).count()
+    progress_pct = round((solved_count / total_count * 100), 1) if total_count > 0 else 0
+    
+    for p in problems:
+        p.is_solved = p.id in solved_problems_ids
+        
+    indian_companies = ["Zoho", "TCS", "Infosys", "Wipro", "Cognizant", "Flipkart", "Paytm", "Swiggy", "Zomato", "PhonePe", "CRED"]
+    
+    context = {
+        "selected_company": target_company,
+        "selected_difficulty": difficulty,
+        "companies": indian_companies,
+        "problems": problems,
+        "total_count": total_count,
+        "solved_count": solved_count,
+        "progress_pct": progress_pct
+    }
+    return render(request, "company_prep.html", context)
 
 def help_page(request):
     return render(request, "help.html")

@@ -3,47 +3,113 @@
 {% block title %}Roadmap | DSA Practice Hub{% endblock %}
 
 {% block content %}
-<div class="roadmap-header" style="margin-bottom: 40px;">
+<div class="roadmap-header" style="margin-bottom: 32px;">
     <h1>🗺️ Learning Roadmap</h1>
-    <p style="color: var(--text-secondary); margin-top: 4px;">Follow this structured 13-stage guide to master Data Structures & Algorithms patterns.</p>
+    <p style="color: var(--text-secondary); margin-top: 4px;">Follow this structured 5-stage progression from Beginner to Master. Opt-in to track your levels!</p>
 </div>
 
-<div class="roadmap-timeline">
-    {% for step in roadmap %}
-    <div class="roadmap-node">
-        <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 12px;">
-            <div class="roadmap-title">Stage {{ forloop.counter }}: {{ step.category }}</div>
-            <div style="font-size: 0.9rem; color: var(--text-secondary);">
-                Progress: <strong style="color: var(--color-success);">{{ step.solved }} / {{ step.total }}</strong> ({{ step.progress_pct }}%)
+<!-- Levels Navigation Tabs -->
+<div style="display: flex; gap: 12px; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; overflow-x: auto;">
+    {% for lvl in roadmap_levels %}
+    <button onclick="switchLevel('{{ lvl.name }}')" id="tab-{{ lvl.name }}" class="btn {% if forloop.first %}btn-primary{% else %}btn-secondary{% endif %}" style="padding: 8px 16px; font-size: 0.9rem; border-radius: 20px;">
+        {{ lvl.name }} Level
+    </button>
+    {% endfor %}
+</div>
+
+<!-- Levels Container -->
+<div>
+    {% for lvl in roadmap_levels %}
+    <div id="level-sec-{{ lvl.name }}" class="level-section" style="{% if not forloop.first %}display: none;{% endif %}">
+        
+        <!-- Level Progress & Opt-In Tracker -->
+        <div class="stat-card" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; background: rgba(99, 102, 241, 0.03); border-color: var(--color-primary-glow);">
+            <div>
+                <h2 style="font-size: 1.4rem; margin: 0; display: flex; align-items: center; gap: 10px;">
+                    🎯 {{ lvl.name }} Level Tracker
+                    {% if lvl.is_opted_in %}
+                    <span id="badge-opted-{{ lvl.name }}" class="badge completed" style="font-size: 0.75rem; vertical-align: middle;">Active Target</span>
+                    {% else %}
+                    <span id="badge-opted-{{ lvl.name }}" class="badge pending" style="font-size: 0.75rem; vertical-align: middle; display: none;">Active Target</span>
+                    {% endif %}
+                </h2>
+                <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px; margin-bottom: 0;">
+                    Overall Level Progress: <strong style="color: var(--color-success);">{{ lvl.solved }} / {{ lvl.total }}</strong> problems solved ({{ lvl.progress_pct }}%)
+                </p>
+            </div>
+            
+            <div>
+                <button id="btn-optin-{{ lvl.name }}" onclick="toggleOptIn('{{ lvl.name }}')" class="btn {% if lvl.is_opted_in %}btn-secondary{% else %}btn-primary{% endif %}" style="padding: 10px 20px; font-size: 0.9rem;">
+                    {% if lvl.is_opted_in %}🛑 Opt-out of Tracking{% else %}⭐ Join & Track Level{% endif %}
+                </button>
             </div>
         </div>
-        
-        <!-- Category progress bar -->
-        <div style="height: 4px; background-color: rgba(255,255,255,0.03); border-radius: 2px; overflow: hidden; margin: 4px 0 12px 0; width: 100%;">
-            <div style="height: 100%; width: {{ step.progress_pct }}%; background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%);"></div>
-        </div>
-        
-        <!-- Problems within stage -->
-        <div class="roadmap-cards">
-            {% for p in step.problems %}
-            <div class="roadmap-card" style="display: flex; flex-direction: column; justify-content: space-between; gap: 12px; {% if p.is_solved %}border-color: rgba(16, 185, 129, 0.2); background: rgba(16, 185, 129, 0.02);{% endif %}">
-                <div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary);">{{ p.id }}</span>
-                        <span class="badge {% if p.difficulty == 'Easy' %}easy{% elif p.difficulty == 'Medium' %}medium{% else %}hard{% endif %}" style="font-size: 0.65rem; padding: 2px 6px;">
-                            {{ p.difficulty }}
-                        </span>
+
+        <!-- Topics Accordion in Level -->
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+            {% for step in lvl.categories %}
+            <div class="stat-card" style="padding: 20px; border-color: rgba(255,255,255,0.04);">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; cursor: pointer;" onclick="toggleTopicAccordion('{{ lvl.name }}-{{ forloop.counter }}')">
+                    <div>
+                        <h3 style="font-size: 1.15rem; margin: 0; display: inline-flex; align-items: center; gap: 8px;">
+                            <span>📚</span> Topic: {{ step.category }}
+                        </h3>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px; display: flex; gap: 12px;">
+                            <span>Solved: {{ step.solved }} / {{ step.total }}</span>
+                            <span style="color: var(--color-medium); font-weight: 600;">🏆 Expert Score: {{ step.expert_score }}/100</span>
+                        </div>
                     </div>
-                    <a href="{% url 'practice:practice' p.id %}" class="problem-link" style="font-size: 0.95rem; font-weight: 600;">{{ p.title }}</a>
+                    
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <!-- Progress bar -->
+                        <div style="width: 150px; height: 6px; background-color: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; display: block;">
+                            <div style="height: 100%; width: {{ step.progress_pct }}%; background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%);"></div>
+                        </div>
+                        <span id="icon-{{ lvl.name }}-{{ forloop.counter }}" style="font-size: 1.2rem; color: var(--text-secondary);">▼</span>
+                    </div>
                 </div>
-                
-                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; border-top: 1px solid var(--border-color); padding-top: 8px;">
-                    <span style="color: var(--text-secondary);">Concepts: {{ p.concepts_list.0 }}</span>
-                    {% if p.is_solved %}
-                    <span style="color: var(--color-success); font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">🟢 Solved</span>
-                    {% else %}
-                    <span style="color: var(--text-secondary); display: inline-flex; align-items: center; gap: 4px;">⚪ Pending</span>
-                    {% endif %}
+
+                <!-- Scrollable Problems list -->
+                <div id="content-{{ lvl.name }}-{{ forloop.counter }}" style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                    <div style="display: flex; gap: 12px; margin-bottom: 12px; align-items: center; flex-wrap: wrap;">
+                        <input type="text" onkeyup="filterProblems('{{ lvl.name }}-{{ forloop.counter }}', this.value)" placeholder="🔍 Search problems..." class="search-input" style="padding: 6px 12px; font-size: 0.85rem; flex-grow: 1; max-width: 300px;">
+                        <select onchange="filterDifficulty('{{ lvl.name }}-{{ forloop.counter }}', this.value)" class="select-filter" style="padding: 6px 12px; font-size: 0.85rem;">
+                            <option value="">All Difficulties</option>
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                        <select onchange="filterStatus('{{ lvl.name }}-{{ forloop.counter }}', this.value)" class="select-filter" style="padding: 6px 12px; font-size: 0.85rem;">
+                            <option value="">All Statuses</option>
+                            <option value="solved">Solved</option>
+                            <option value="pending">Pending</option>
+                        </select>
+                    </div>
+
+                    <div id="list-{{ lvl.name }}-{{ forloop.counter }}" style="max-height: 320px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; padding-right: 6px;">
+                        {% for p in step.problems %}
+                        <div class="roadmap-card problem-card-item" data-title="{{ p.title|lower }}" data-diff="{{ p.difficulty|lower }}" data-solved="{% if p.is_solved %}solved{% else %}pending{% endif %}" style="display: flex; flex-direction: column; justify-content: space-between; gap: 8px; padding: 12px; border-radius: 8px; {% if p.is_solved %}border-color: rgba(16, 185, 129, 0.2); background: rgba(16, 185, 129, 0.02);{% endif %}">
+                            <div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                    <span style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-secondary);">{{ p.id }}</span>
+                                    <span class="badge {% if p.difficulty == 'Easy' %}easy{% elif p.difficulty == 'Medium' %}medium{% else %}hard{% endif %}" style="font-size: 0.6rem; padding: 1px 4px;">
+                                        {{ p.difficulty }}
+                                    </span>
+                                </div>
+                                <a href="{% url 'practice:practice' p.id %}" class="problem-link" style="font-size: 0.85rem; font-weight: 600;">{{ p.title }}</a>
+                            </div>
+                            
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; border-top: 1px solid var(--border-color); padding-top: 6px; margin-top: 4px;">
+                                <span style="color: var(--text-secondary); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Asked in: {{ p.companies }}</span>
+                                {% if p.is_solved %}
+                                <span style="color: var(--color-success); font-weight: 700;">🟢 Solved</span>
+                                {% else %}
+                                <span style="color: var(--text-secondary);">⚪ Pending</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
             {% endfor %}
@@ -51,4 +117,118 @@
     </div>
     {% endfor %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function switchLevel(levelName) {
+        // Toggle sections
+        document.querySelectorAll('.level-section').forEach(sec => {
+            sec.style.display = 'none';
+        });
+        document.getElementById(`level-sec-${levelName}`).style.display = 'block';
+
+        // Toggle active tabs
+        document.querySelectorAll('[id^="tab-"]').forEach(btn => {
+            btn.className = 'btn btn-secondary';
+            btn.style.borderRadius = '20px';
+        });
+        document.getElementById(`tab-${levelName}`).className = 'btn btn-primary';
+    }
+
+    function toggleTopicAccordion(topicKey) {
+        const content = document.getElementById(`content-${topicKey}`);
+        const icon = document.getElementById(`icon-${topicKey}`);
+        if (content.style.display === 'none') {
+            content.style.display = 'block';
+            icon.innerText = '▼';
+        } else {
+            content.style.display = 'none';
+            icon.innerText = '▶';
+        }
+    }
+
+    async function toggleOptIn(levelName) {
+        const btn = document.getElementById(`btn-optin-${levelName}`);
+        const badge = document.getElementById(`badge-opted-${levelName}`);
+        const isOptedIn = btn.innerText.includes('Opt-out');
+        
+        const response = await fetch("{% url 'practice:toggle_optin' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `level_name=${levelName}&opted_in=${!isOptedIn}`
+        });
+
+        const resData = await response.json();
+        if (resData.status === 'SUCCESS') {
+            if (isOptedIn) {
+                btn.innerText = '⭐ Join & Track Level';
+                btn.className = 'btn btn-primary';
+                badge.style.display = 'none';
+            } else {
+                btn.innerText = '🛑 Opt-out of Tracking';
+                btn.className = 'btn btn-secondary';
+                badge.style.display = 'inline-block';
+            }
+        }
+    }
+
+    // Interactive client-side filters
+    function filterProblems(listId, query) {
+        const container = document.getElementById(`list-${listId}`);
+        const cards = container.querySelectorAll('.problem-card-item');
+        query = query.toLowerCase();
+        
+        cards.forEach(card => {
+            const matchesQuery = card.getAttribute('data-title').includes(query);
+            applyFilters(card, matchesQuery);
+        });
+    }
+
+    function filterDifficulty(listId, diff) {
+        const container = document.getElementById(`list-${listId}`);
+        const cards = container.querySelectorAll('.problem-card-item');
+        diff = diff.toLowerCase();
+        
+        cards.forEach(card => {
+            const matchesDiff = diff === "" || card.getAttribute('data-diff') === diff;
+            applyFilters(card, null, matchesDiff);
+        });
+    }
+
+    function filterStatus(listId, status) {
+        const container = document.getElementById(`list-${listId}`);
+        const cards = container.querySelectorAll('.problem-card-item');
+        status = status.toLowerCase();
+        
+        cards.forEach(card => {
+            const matchesStatus = status === "" || card.getAttribute('data-solved') === status;
+            applyFilters(card, null, null, matchesStatus);
+        });
+    }
+
+    function applyFilters(card, matchesQuery, matchesDiff, matchesStatus) {
+        // Retrieve current values or use updated ones
+        if (matchesQuery === null || matchesQuery === undefined) {
+            const input = card.closest('.stat-card').querySelector('.search-input');
+            matchesQuery = card.getAttribute('data-title').includes(input.value.toLowerCase());
+        }
+        if (matchesDiff === null || matchesDiff === undefined) {
+            const selectDiff = card.closest('.stat-card').querySelectorAll('.select-filter')[0];
+            matchesDiff = selectDiff.value === "" || card.getAttribute('data-diff') === selectDiff.value.toLowerCase();
+        }
+        if (matchesStatus === null || matchesStatus === undefined) {
+            const selectStatus = card.closest('.stat-card').querySelectorAll('.select-filter')[1];
+            matchesStatus = selectStatus.value === "" || card.getAttribute('data-solved') === selectStatus.value.toLowerCase();
+        }
+
+        if (matchesQuery && matchesDiff && matchesStatus) {
+            card.style.display = 'flex';
+        } else {
+            card.style.display = 'none';
+        }
+    }
+</script>
 {% endblock %}
