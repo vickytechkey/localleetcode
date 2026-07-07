@@ -73,14 +73,6 @@
                 {% endfor %}
             </div>
             {% endif %}
-
-            {% if problem.solution_code %}
-            <h3>💡 Reference Solution</h3>
-            <details style="margin-top: 8px; background: rgba(255,255,255,0.02); border: 1px dashed var(--border-color); border-radius: 8px; padding: 12px; cursor: pointer;">
-                <summary style="font-size: 0.9rem; font-weight: 600; color: var(--color-primary); outline: none;">Reveal Working Python 3 Solution</summary>
-                <pre style="margin-top: 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); padding: 12px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.85rem; color: #cbd5e1; overflow-x: auto; white-space: pre-wrap; cursor: text;">{{ problem.solution_code }}</pre>
-            </details>
-            {% endif %}
         </div>
     </div>
 

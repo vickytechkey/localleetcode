@@ -46,14 +46,6 @@ def add_examples_and_solution(problem, cases):
         
     problem.description += examples_str
     
-    if f_name in GOLDEN_SOLVERS:
-        try:
-            src = inspect.getsource(GOLDEN_SOLVERS[f_name])
-            src = src.replace(f"ref_{f_name}", f_name)
-            problem.solution_code = src
-        except Exception:
-            pass
-            
     problem.save()
 
 def run_seed():
