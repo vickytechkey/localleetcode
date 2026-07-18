@@ -35,12 +35,12 @@
     </div>
     <div style="display: flex; gap: 10px; align-items: center;">
         {% if prev_problem %}
-            <a href="{% url 'practice:practice_sandbox' prev_problem.id %}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.9rem; text-decoration: none; display: flex; align-items: center; gap: 4px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.03); color: var(--text-primary);">
+            <a href="{% url 'practice:practice' prev_problem.id %}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.9rem; text-decoration: none; display: flex; align-items: center; gap: 4px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.03); color: var(--text-primary);">
                 ◀ Prev
             </a>
         {% endif %}
         {% if next_problem %}
-            <a href="{% url 'practice:practice_sandbox' next_problem.id %}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.9rem; text-decoration: none; display: flex; align-items: center; gap: 4px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.03); color: var(--text-primary);">
+            <a href="{% url 'practice:practice' next_problem.id %}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.9rem; text-decoration: none; display: flex; align-items: center; gap: 4px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.03); color: var(--text-primary);">
                 Next ▶
             </a>
         {% endif %}
