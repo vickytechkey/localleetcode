@@ -15,6 +15,7 @@ def add_examples_and_solution(problem, cases):
         
     f_name = problem.function_name
     if f_name == "twoSum": arg_names = ["nums", "target"]
+    elif f_name == "intersection": arg_names = ["nums1", "nums2"]
     elif f_name == "containsDuplicate": arg_names = ["nums"]
     elif f_name == "isPalindrome": arg_names = ["s"]
     elif f_name == "twoSumSorted": arg_names = ["numbers", "target"]
@@ -920,6 +921,14 @@ def generate_test_cases_for_problem(problem, func_name, comp_mode):
             ([[1, 2, 3, 4, 5], 9], [3, 4]),
             ([[0, 4, 3, 0], 0], [0, 3]),
             ([[1, 10, 20, 30], 40], [1, 3])
+        ]
+    elif func_name == "intersection":
+        cases = [
+            ([[1, 2, 2, 1], [2, 2]], [2]),
+            ([[4, 9, 5], [9, 4, 9, 8, 4]], [4, 9]),
+            ([[1, 2, 3], [4, 5, 6]], []),
+            ([[1], [1]], [1]),
+            ([[1, 2], [2, 1]], [1, 2])
         ]
     # 2. Contains Duplicate
     elif func_name == "containsDuplicate":

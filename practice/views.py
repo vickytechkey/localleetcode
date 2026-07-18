@@ -216,6 +216,9 @@ def practice_sandbox(request, problem_id):
     problem = get_object_or_404(Problem, id=problem_id)
     submissions = Submission.objects.filter(problem=problem).order_by('-timestamp')
     
+    prev_problem = Problem.objects.filter(id__lt=problem.id).order_by('-id').first()
+    next_problem = Problem.objects.filter(id__gt=problem.id).order_by('id').first()
+    
     default_code = f"class Solution:\n    def {problem.function_name}(self):\n        pass\n"
     if problem.input_types:
         try:
@@ -231,7 +234,9 @@ def practice_sandbox(request, problem_id):
     context = {
         "problem": problem,
         "submissions": submissions,
-        "default_code": default_code
+        "default_code": default_code,
+        "prev_problem": prev_problem,
+        "next_problem": next_problem
     }
     return render(request, "practice.html", context)
 

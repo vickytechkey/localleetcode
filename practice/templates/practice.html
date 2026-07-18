@@ -33,7 +33,17 @@
         <a href="{% url 'practice:problems' %}" style="color: var(--text-secondary); text-decoration: none; font-size: 0.9rem;">← Back to Problems</a>
         <h1 style="font-size: 1.8rem; margin-top: 8px; margin-bottom: 0;">💻 {{ problem.title }}</h1>
     </div>
-    <div>
+    <div style="display: flex; gap: 10px; align-items: center;">
+        {% if prev_problem %}
+            <a href="{% url 'practice:practice_sandbox' prev_problem.id %}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.9rem; text-decoration: none; display: flex; align-items: center; gap: 4px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.03); color: var(--text-primary);">
+                ◀ Prev
+            </a>
+        {% endif %}
+        {% if next_problem %}
+            <a href="{% url 'practice:practice_sandbox' next_problem.id %}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.9rem; text-decoration: none; display: flex; align-items: center; gap: 4px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.03); color: var(--text-primary);">
+                Next ▶
+            </a>
+        {% endif %}
         <span class="badge {% if problem.difficulty == 'Easy' %}easy{% elif problem.difficulty == 'Medium' %}medium{% else %}hard{% endif %}">{{ problem.difficulty }}</span>
     </div>
 </div>
@@ -108,7 +118,12 @@
             </div>
             <div id="result-summary" class="result-header"></div>
             <div id="result-time" style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;"></div>
+            <div style="display: flex; gap: 16px; border-bottom: 1px solid var(--border-color); margin-bottom: 16px;">
+                <button id="tab-testcases" class="btn" style="background: none; border: none; border-bottom: 2px solid var(--color-primary); color: var(--text-primary); border-radius: 0; padding: 8px 16px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Test Cases</button>
+                <button id="tab-console" class="btn" style="background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); border-radius: 0; padding: 8px 16px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Console Output</button>
+            </div>
             <div class="testcase-list" id="testcases-container"></div>
+            <div id="console-container" style="display: none; background: #0f172a; border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; font-family: var(--font-mono); font-size: 0.85rem; color: #f8fafc; overflow-y: auto; max-height: 250px; white-space: pre-wrap;"></div>
         </div>
     </div>
 </div>
@@ -138,13 +153,16 @@
         });
     });
 
-    const runBtn = document.getElementById('btn-run');
+     const runBtn = document.getElementById('btn-run');
     const submitBtn = document.getElementById('btn-submit');
     const stopBtn = document.getElementById('btn-stop');
     const resultsPanel = document.getElementById('results-panel');
     const resultSummary = document.getElementById('result-summary');
     const resultTime = document.getElementById('result-time');
     const testcasesContainer = document.getElementById('testcases-container');
+    const tabTestcases = document.getElementById('tab-testcases');
+    const tabConsole = document.getElementById('tab-console');
+    const consoleContainer = document.getElementById('console-container');
 
     const progressContainer = document.getElementById('progress-container');
     const progressText = document.getElementById('progress-text');
@@ -152,6 +170,24 @@
     const progressBar = document.getElementById('progress-bar');
 
     let abortController = null;
+
+    tabTestcases.addEventListener('click', () => {
+        tabTestcases.style.borderBottomColor = 'var(--color-primary)';
+        tabTestcases.style.color = 'var(--text-primary)';
+        tabConsole.style.borderBottomColor = 'transparent';
+        tabConsole.style.color = 'var(--text-secondary)';
+        testcasesContainer.style.display = 'block';
+        consoleContainer.style.display = 'none';
+    });
+
+    tabConsole.addEventListener('click', () => {
+        tabConsole.style.borderBottomColor = 'var(--color-primary)';
+        tabConsole.style.color = 'var(--text-primary)';
+        tabTestcases.style.borderBottomColor = 'transparent';
+        tabTestcases.style.color = 'var(--text-secondary)';
+        consoleContainer.style.display = 'block';
+        testcasesContainer.style.display = 'none';
+    });
 
     runBtn.addEventListener('click', () => executeCode("{% url 'practice:run_code' problem.id %}"));
     submitBtn.addEventListener('click', () => executeCode("{% url 'practice:submit_code' problem.id %}"));
@@ -183,6 +219,8 @@
         resultSummary.innerHTML = '⚡ Preparing execution...';
         resultTime.innerHTML = '';
         testcasesContainer.innerHTML = '';
+        consoleContainer.innerHTML = 'Executing...';
+        tabTestcases.click();
         resultsPanel.style.display = 'block';
         
         progressContainer.style.display = 'block';
@@ -253,6 +291,7 @@
                             pre.style.fontSize = '0.85rem';
                             pre.innerHTML = data.traceback;
                             testcasesContainer.appendChild(pre);
+                            consoleContainer.innerText = data.traceback;
                         }
                     } else if (data.type === 'result') {
                         progressContainer.style.display = 'none';
@@ -268,6 +307,7 @@
                         resultTime.innerHTML = `Total Execution Time: ${data.total_time_ms} ms`;
 
                         if (data.results) {
+                            let consoleOutput = '';
                             data.results.forEach((tc, index) => {
                                 const tcItem = document.createElement('div');
                                 tcItem.className = 'testcase-item';
@@ -315,7 +355,15 @@
                                     ` : ''}
                                 `;
                                 testcasesContainer.appendChild(tcItem);
+
+                                if (tc.stdout) {
+                                    consoleOutput += `--- Test Case ${index + 1} Output ---\n${tc.stdout}\n`;
+                                }
+                                if (tc.message && tc.message !== "Passed" && tc.message !== "Mismatch") {
+                                    consoleOutput += `--- Test Case ${index + 1} Error ---\n${tc.message}\n`;
+                                }
                             });
+                            consoleContainer.innerText = consoleOutput || 'No console output produced.';
                         }
                     }
                 }
