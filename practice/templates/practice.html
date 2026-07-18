@@ -99,10 +99,10 @@
         <div id="editor-container"></div>
         
         <!-- Action Buttons -->
-        <div class="control-bar">
+        <div class="control-bar" style="display: flex; gap: 8px;">
             <button id="btn-run" class="btn btn-secondary">💻 Run Code</button>
             <button id="btn-submit" class="btn btn-primary">🚀 Submit Solution</button>
-            <button id="btn-stop" class="btn" style="background: var(--color-fail); color: #fff; border: none; display: none;">🛑 Stop Execution</button>
+            <button id="btn-stop" class="btn btn-secondary" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: rgba(239, 68, 68, 0.6); cursor: not-allowed;" disabled>🛑 Stop Execution</button>
         </div>
 
         <!-- Dynamic Results Panel (hidden initially) -->
@@ -206,9 +206,11 @@
     function resetButtons() {
         runBtn.disabled = false;
         submitBtn.disabled = false;
-        runBtn.style.display = 'inline-block';
-        submitBtn.style.display = 'inline-block';
-        stopBtn.style.display = 'none';
+        stopBtn.disabled = true;
+        stopBtn.style.background = 'rgba(239, 68, 68, 0.1)';
+        stopBtn.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+        stopBtn.style.color = 'rgba(239, 68, 68, 0.6)';
+        stopBtn.style.cursor = 'not-allowed';
     }
 
     async function executeCode(url) {
@@ -228,9 +230,13 @@
         progressPercentage.innerHTML = '0%';
         progressBar.style.width = '0%';
 
-        runBtn.style.display = 'none';
-        submitBtn.style.display = 'none';
-        stopBtn.style.display = 'inline-block';
+        runBtn.disabled = true;
+        submitBtn.disabled = true;
+        stopBtn.disabled = false;
+        stopBtn.style.background = 'var(--color-fail)';
+        stopBtn.style.borderColor = 'var(--color-fail)';
+        stopBtn.style.color = '#fff';
+        stopBtn.style.cursor = 'pointer';
 
         abortController = new AbortController();
         executionTraces = {}; // clear old traces

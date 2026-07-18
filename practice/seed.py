@@ -17,6 +17,7 @@ def add_examples_and_solution(problem, cases):
     if f_name == "twoSum": arg_names = ["nums", "target"]
     elif f_name == "intersection": arg_names = ["nums1", "nums2"]
     elif f_name == "majorityElement": arg_names = ["nums"]
+    elif f_name == "numUniqueEmails": arg_names = ["emails"]
     elif f_name == "containsDuplicate": arg_names = ["nums"]
     elif f_name == "isPalindrome": arg_names = ["s"]
     elif f_name == "twoSumSorted": arg_names = ["numbers", "target"]
@@ -939,6 +940,14 @@ def generate_test_cases_for_problem(problem, func_name, comp_mode):
             ([[5, 5, 5, 2, 2, 5, 3]], 5),
             ([[6, 6, 6, 6, 1, 2, 3]], 6)
         ]
+    elif func_name == "numUniqueEmails":
+        cases = [
+            ([["test.email+alex@leetcode.com", "test.e.mail+bob.cathy@leetcode.com", "testemail+david@lee.tcode.com"]], 2),
+            ([["a@leetcode.com", "b@leetcode.com", "c@leetcode.com"]], 3),
+            ([["test.email+alex@leetcode.com", "test.email@leetcode.com"]], 1),
+            ([["abc@leetcode.com", "abc@leetcode.com"]], 1),
+            ([["t.e.s.t.e.m.a.i.l+bob@leetcode.com", "testemail@leetcode.com"]], 1)
+        ]
     # 2. Contains Duplicate
     elif func_name == "containsDuplicate":
         cases = [
@@ -1125,6 +1134,8 @@ def generate_test_cases_for_problem(problem, func_name, comp_mode):
     # based on their function names!
     else:
         cases = generate_generic_cases(func_name)
+        if len(cases) == 5 and cases[0][0] == [[1, 2, 3]] and cases[0][1] == [1, 2, 3]:
+            cases = generate_generic_cases_for_types(func_name, problem.input_types)
         
     # Ensure at least 10 testcases by duplicating if needed
     final_cases = list(cases)
@@ -1636,6 +1647,47 @@ def generate_10_cases_for_parent(func_name):
     for _ in range(2):
         inputs = generate_inputs(func_name, "large")
         expected = solver(*inputs)
+        cases.append((inputs, expected))
+    return cases
+
+def generate_generic_cases_for_types(func_name, input_types_str):
+    try:
+        types = json.loads(input_types_str)
+    except Exception:
+        types = ["List[int]"]
+    
+    cases = []
+    for tc_idx in range(5):
+        inputs = []
+        for t in types:
+            t_clean = t.replace(" ", "")
+            if t_clean == "int":
+                inputs.append(random.choice([1, 2, 3, 4, 5]))
+            elif t_clean == "str":
+                inputs.append(random.choice(["abc", "def", "xyz", "pqr"]))
+            elif t_clean == "bool":
+                inputs.append(random.choice([True, False]))
+            elif t_clean == "List[int]":
+                inputs.append(random.sample([1, 2, 3, 4, 5, 6, 7], random.randint(2, 4)))
+            elif t_clean == "List[str]":
+                inputs.append(random.sample(["a", "b", "c", "d"], random.randint(2, 4)))
+            elif t_clean == "List[List[int]]":
+                inputs.append([[random.randint(1, 9) for _ in range(2)] for _ in range(2)])
+            elif t_clean == "List[List[str]]":
+                inputs.append([[random.choice(["a", "b"]) for _ in range(2)] for _ in range(2)])
+            elif t_clean == "ListNode" or t_clean == "TreeNode":
+                inputs.append(random.sample([1, 2, 3, 4, 5], random.randint(2, 4)))
+            else:
+                inputs.append([1, 2, 3])
+        
+        expected = None
+        if func_name.startswith("is") or func_name.startswith("can") or func_name.startswith("has") or func_name.endswith("Valid") or func_name.endswith("Duplicate"):
+            expected = True
+        elif "sum" in func_name.lower() or "count" in func_name.lower() or "length" in func_name.lower() or "max" in func_name.lower() or "min" in func_name.lower() or "find" in func_name.lower():
+            expected = 0
+        else:
+            expected = []
+            
         cases.append((inputs, expected))
     return cases
 
