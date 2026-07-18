@@ -219,6 +219,9 @@ def practice_sandbox(request, problem_id):
     prev_problem = Problem.objects.filter(id__lt=problem.id).order_by('-id').first()
     next_problem = Problem.objects.filter(id__gt=problem.id).order_by('id').first()
     
+    # Check if this problem has been solved (any PASS submission)
+    is_solved = submissions.filter(status='PASS').exists()
+    
     default_code = f"class Solution:\n    def {problem.function_name}(self):\n        pass\n"
     if problem.input_types:
         try:
@@ -227,14 +230,20 @@ def practice_sandbox(request, problem_id):
             default_code = f"def {problem.function_name}({args_str}):\n    # Write your solution here\n    return None\n"
         except Exception:
             pass
-            
-    if submissions.exists():
+    
+    # Prefer the last PASSING submission as default code to avoid losing working solutions
+    # when a user edits and re-runs after a successful submission
+    best_submission = submissions.filter(status='PASS').order_by('-timestamp').first()
+    if best_submission:
+        default_code = best_submission.code
+    elif submissions.exists():
         default_code = submissions.first().code
         
     context = {
         "problem": problem,
         "submissions": submissions,
         "default_code": default_code,
+        "is_solved": is_solved,
         "prev_problem": prev_problem,
         "next_problem": next_problem
     }

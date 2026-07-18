@@ -44,6 +44,11 @@
                 Next ▶
             </a>
         {% endif %}
+        {% if is_solved %}
+            <span id="solved-badge" style="display: inline-flex; align-items: center; gap: 6px; background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.35); color: #22c55e; padding: 5px 12px; border-radius: 999px; font-size: 0.85rem; font-weight: 600;">✅ Solved</span>
+        {% else %}
+            <span id="solved-badge" style="display: none; align-items: center; gap: 6px; background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.35); color: #22c55e; padding: 5px 12px; border-radius: 999px; font-size: 0.85rem; font-weight: 600;">✅ Solved</span>
+        {% endif %}
         <span class="badge {% if problem.difficulty == 'Easy' %}easy{% elif problem.difficulty == 'Medium' %}medium{% else %}hard{% endif %}">{{ problem.difficulty }}</span>
     </div>
 </div>
@@ -305,6 +310,11 @@
                         if (data.status === 'PASS') {
                             resultSummary.className = 'result-header result-success';
                             resultSummary.innerHTML = '🎉 Correct! All test cases passed.';
+                            // Show the solved badge persistently
+                            const solvedBadge = document.getElementById('solved-badge');
+                            if (solvedBadge) {
+                                solvedBadge.style.display = 'inline-flex';
+                            }
                         } else {
                             resultSummary.className = 'result-header result-fail';
                             resultSummary.innerHTML = '❌ Incorrect. One or more test cases failed.';
