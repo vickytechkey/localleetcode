@@ -147,6 +147,7 @@ def problems_bank(request):
     difficulty = request.GET.get('difficulty', '')
     category = request.GET.get('category', '')
     status = request.GET.get('status', '')
+    milestone = request.GET.get('milestone', '')
     
     problems = Problem.objects.all()
     
@@ -156,6 +157,11 @@ def problems_bank(request):
         problems = problems.filter(difficulty=difficulty)
     if category:
         problems = problems.filter(category=category)
+    if milestone:
+        try:
+            problems = problems.filter(milestone=int(milestone))
+        except ValueError:
+            pass
         
     solved_ids = set(Submission.objects.filter(status='PASS').values_list('problem_id', flat=True).distinct())
     attempted_ids = set(Submission.objects.values_list('problem_id', flat=True).distinct())
@@ -185,9 +191,11 @@ def problems_bank(request):
         "query": query,
         "selected_difficulty": difficulty,
         "selected_category": category,
-        "selected_status": status
+        "selected_status": status,
+        "selected_milestone": milestone
     }
     return render(request, "problems.html", context)
+
 
 def practice_sandbox(request, problem_id):
     problem = get_object_or_404(Problem, id=problem_id)

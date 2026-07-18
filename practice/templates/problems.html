@@ -11,9 +11,18 @@
 </div>
 
 <!-- Filters Row -->
-<form method="GET" class="filter-row">
-    <input type="text" name="q" value="{{ query }}" placeholder="🔍 Search by Title, Concept, or Keyword..." class="search-input">
+<form method="GET" class="filter-row" style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px;">
+    <input type="text" name="q" value="{{ query }}" placeholder="🔍 Search by Title, Concept, or Keyword..." class="search-input" style="flex-grow: 1; min-width: 250px;">
     
+    <select name="milestone" class="select-filter" onchange="this.form.submit()">
+        <option value="">All Milestones</option>
+        <option value="1" {% if selected_milestone == "1" %}selected{% endif %}>🎯 Milestone 1</option>
+        <option value="2" {% if selected_milestone == "2" %}selected{% endif %}>🎯 Milestone 2</option>
+        <option value="3" {% if selected_milestone == "3" %}selected{% endif %}>🎯 Milestone 3</option>
+        <option value="4" {% if selected_milestone == "4" %}selected{% endif %}>🎯 Milestone 4</option>
+        <option value="5" {% if selected_milestone == "5" %}selected{% endif %}>🎯 Milestone 5</option>
+    </select>
+
     <select name="difficulty" class="select-filter" onchange="this.form.submit()">
         <option value="">All Difficulties</option>
         <option value="Easy" {% if selected_difficulty == "Easy" %}selected{% endif %}>🟢 Easy</option>
@@ -35,7 +44,7 @@
         <option value="Pending" {% if selected_status == "Pending" %}selected{% endif %}>⚪ Pending</option>
     </select>
     
-    {% if query or selected_difficulty or selected_category or selected_status %}
+    {% if query or selected_difficulty or selected_category or selected_status or selected_milestone %}
     <a href="{% url 'practice:problems' %}" class="btn btn-secondary" style="text-decoration: none; padding: 10px 16px; display: inline-flex; align-items: center;">Clear Filters</a>
     {% endif %}
 </form>
@@ -58,7 +67,10 @@
             <tr>
                 <td style="color: var(--text-secondary); font-family: var(--font-mono); font-size: 0.9rem;">{{ p.id }}</td>
                 <td>
-                    <a href="{% url 'practice:practice' p.id %}" class="problem-link">{{ p.title }}</a>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <a href="{% url 'practice:practice' p.id %}" class="problem-link" style="font-weight: 600;">{{ p.title }}</a>
+                        <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; font-size: 0.7rem; border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 4px; padding: 1px 6px;">M{{ p.milestone }}</span>
+                    </div>
                     <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">
                         {% for concept in p.concepts_list %}
                         <span style="background-color: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 2px 6px; border-radius: 4px; margin-right: 4px;">{{ concept }}</span>
@@ -80,6 +92,7 @@
             {% endfor %}
         </tbody>
     </table>
+
     {% else %}
     <div style="padding: 40px; text-align: center; color: var(--text-secondary);">
         <p style="font-size: 1.1rem; margin-bottom: 8px;">No problems found matching your filters.</p>
