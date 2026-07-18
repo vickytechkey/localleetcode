@@ -784,6 +784,33 @@ def run_seed():
             assigned = random.sample(comp_pool, min(len(comp_pool), random.randint(2, 4)))
             companies_str = ", ".join(assigned)
 
+            # Determine milestone mapping
+            # Milestone 1: Arrays (AR), Hashing (HS), and Bit Manipulation (AV - singleNumber, countBits, reverseBits, missingNumber, hammingWeight)
+            # Milestone 2: Two Pointers (TP), Sliding Window (SW), Binary Search (BS)
+            # Milestone 3: Linked List (LL), Stack & Queue (SQ), Trees & BST (TR)
+            # Milestone 4: Heap (HP), Backtracking (BT), Graph (GR - simple traversal or connectivity)
+            # Milestone 5: Graph (GR - Dijkstra/MST/Hierholzer/Bellman), Greedy (GY), DP (DP), Advanced (AV - Trie, getSum)
+            milestone = 1
+            if category_code in ["TP", "SW", "BS"]:
+                milestone = 2
+            elif category_code in ["LL", "SQ", "TR"]:
+                milestone = 3
+            elif category_code in ["HP", "BT"]:
+                milestone = 4
+            elif category_code == "GR":
+                # Simple/traversal graphs in Milestone 4, complex shortest paths / MST / alien order in Milestone 5
+                if func in ["numIslands", "maxAreaOfIsland", "solveRegions", "cloneGraph", "countComponents", "validTree", "orangesRotting", "shortestPathBinaryMatrix", "asFarFromLand", "maxDistance"]:
+                    milestone = 4
+                else:
+                    milestone = 5
+            elif category_code in ["GY", "DP"]:
+                milestone = 5
+            elif category_code == "AV":
+                if func in ["Trie", "Trie2", "getSum"]:
+                    milestone = 5
+                else:
+                    milestone = 1
+
             prob = Problem.objects.create(
                 id=prob_id,
                 title=title,
@@ -794,7 +821,8 @@ def run_seed():
                 hints=hints,
                 function_name=func,
                 input_types=input_types,
-                companies=companies_str
+                companies=companies_str,
+                milestone=milestone
             )
             
             comp_mode = extra[0] if extra else 'Exact'
@@ -846,6 +874,9 @@ def run_seed():
                 assigned = random.sample(comp_pool, min(len(comp_pool), random.randint(2, 4)))
                 companies_str = ", ".join(assigned)
                 
+                # Retrieve parent milestone
+                var_milestone = parent_problem.milestone
+                
                 var_prob = Problem.objects.create(
                     id=prob_id,
                     title=f"{parent_problem.title} - Practice Var {var_idx}",
@@ -856,7 +887,8 @@ def run_seed():
                     hints=parent_problem.hints,
                     function_name=parent_problem.function_name,
                     input_types=parent_problem.input_types,
-                    companies=companies_str
+                    companies=companies_str,
+                    milestone=var_milestone
                 )
                 
                 # Generate exactly 10 test cases using the golden solver
@@ -869,6 +901,7 @@ def run_seed():
                         comparison_mode='Exact'
                     )
                 add_examples_and_solution(var_prob, cases)
+
                     
         print(f"All seeding completed! Total problems in database: {Problem.objects.count()}")
 

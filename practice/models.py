@@ -13,6 +13,8 @@ class Problem(models.Model):
     input_types = models.TextField() # JSON string representation, e.g. ["List[int]", "int"]
     companies = models.TextField(blank=True, default='') # comma-separated e.g. TCS, Infosys, Zoho
     solution_code = models.TextField(blank=True, default='') # working reference python solution
+    milestone = models.IntegerField(default=1) # 1 to 5
+
 
     def __str__(self):
         return f"{self.id}: {self.title}"
