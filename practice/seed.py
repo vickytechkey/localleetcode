@@ -16,7 +16,8 @@ def add_examples_and_solution(problem, cases):
     f_name = problem.function_name
     if f_name == "twoSum": arg_names = ["nums", "target"]
     elif f_name == "intersection": arg_names = ["nums1", "nums2"]
-    elif f_name == "majorityElement": arg_names = ["nums"]
+    elif f_name in ("majorityElement", "majorityElementII", "majorityElementStrict"): arg_names = ["nums"]
+    elif f_name == "majorityElementK": arg_names = ["nums", "k"]
     elif f_name == "numUniqueEmails": arg_names = ["emails"]
     elif f_name == "containsDuplicate": arg_names = ["nums"]
     elif f_name == "isPalindrome": arg_names = ["s"]
@@ -78,6 +79,15 @@ def run_seed():
         ("Majority Element", "Easy", "majorityElement", '["List[int]"]',
          "Given an array nums of size n, return the majority element (appears more than n/2 times).",
          "array, Boyer-Moore", "Use Boyer-Moore Voting Algorithm; Track candidate and count."),
+        ("Majority Element II", "Medium", "majorityElementII", '["List[int]"]',
+         "Given an integer array nums of size n, find all elements that appear more than ⌊ n/3 ⌋ times. Try to do it in O(n) time and O(1) space.",
+         "array, Boyer-Moore", "Maintain two candidates and two counters. Decrease counters only when a new element doesn't match either candidate. Verify candidates in a second pass.", "Ignore Order"),
+        ("Majority Element III", "Medium", "majorityElementK", '["List[int]", "int"]',
+         "Given an integer array nums and an integer k, return all elements that appear more than ⌊ n/k ⌋ times.",
+         "array, Boyer-Moore", "Generalize Boyer-Moore using a dictionary of size at most k-1 to track candidates and counters. Verify counts in a second pass.", "Ignore Order"),
+        ("Majority Element (Strict)", "Medium", "majorityElementStrict", '["List[int]"]',
+         "Given an integer array nums, return the majority element that appears strictly more than ⌊ n/2 ⌋ times. If no such element exists, return -1.",
+         "array, Boyer-Moore", "Standard Boyer-Moore Voting Algorithm. Unlike the basic Majority Element problem, a majority element is not guaranteed to exist, so you must verify the candidate in a second pass."),
         ("Find All Duplicates in an Array", "Medium", "findDuplicates", '["List[int]"]',
          "Given an integer array nums where integers are in [1, n], find all elements that appear twice.",
          "array, sign-flip", "Use element values as indices; Flip sign of value at index to mark seen.", "Ignore Order"),
@@ -939,6 +949,33 @@ def generate_test_cases_for_problem(problem, func_name, comp_mode):
             ([[1]], 1),
             ([[5, 5, 5, 2, 2, 5, 3]], 5),
             ([[6, 6, 6, 6, 1, 2, 3]], 6)
+        ]
+    elif func_name == "majorityElementII":
+        cases = [
+            ([[3, 2, 3]], [3]),
+            ([[1, 2]], [1, 2]),
+            ([[1]], [1]),
+            ([[1, 1, 1, 3, 3, 2, 2, 2]], [1, 2]),
+            ([[0, 0, 0]], [0]),
+            ([[2, 1, 1, 3, 1, 4, 5, 1]], [1])
+        ]
+    elif func_name == "majorityElementK":
+        cases = [
+            ([[1, 2, 3], 2], []),
+            ([[1, 1, 2, 2, 3], 3], [1, 2]),
+            ([[3, 1, 2, 3, 3], 4], [3]),
+            ([[1, 2, 3, 4, 5], 5], []),
+            ([[1, 2, 1, 2, 1, 2, 3], 3], [1, 2])
+        ]
+    elif func_name == "majorityElementStrict":
+        cases = [
+            ([[1, 2, 3]], -1),
+            ([[2, 2, 1, 1, 1, 2, 2]], 2),
+            ([[1, 2, 1, 2]], -1),
+            ([[5]], 5),
+            ([[1, 1, 2]], 1),
+            ([[1, 2, 2]], 2),
+            ([[3, 3, 4, 2, 4, 4, 2, 4, 4]], 4)
         ]
     elif func_name == "numUniqueEmails":
         cases = [
@@ -2699,6 +2736,76 @@ def ref_climbStairs(n):
         a, b = b, a + b
     return b
 
+def ref_majorityElementII(nums):
+    if not nums:
+        return []
+    candidate1, candidate2 = None, None
+    count1, count2 = 0, 0
+    for num in nums:
+        if num == candidate1:
+            count1 += 1
+        elif num == candidate2:
+            count2 += 1
+        elif count1 == 0:
+            candidate1 = num
+            count1 = 1
+        elif count2 == 0:
+            candidate2 = num
+            count2 = 1
+        else:
+            count1 -= 1
+            count2 -= 1
+    
+    result = []
+    limit = len(nums) // 3
+    if nums.count(candidate1) > limit:
+        result.append(candidate1)
+    if candidate2 != candidate1 and nums.count(candidate2) > limit:
+        result.append(candidate2)
+    return sorted(result)
+
+def ref_majorityElementK(nums, k):
+    if not nums or k <= 1:
+        return sorted(list(set(nums)))
+    counts = {}
+    for num in nums:
+        if num in counts:
+            counts[num] += 1
+        elif len(counts) < k - 1:
+            counts[num] = 1
+        else:
+            to_remove = []
+            for cand in counts:
+                counts[cand] -= 1
+                if counts[cand] == 0:
+                    to_remove.append(cand)
+            for cand in to_remove:
+                del counts[cand]
+    
+    result = []
+    limit = len(nums) // k
+    for cand in counts:
+        if nums.count(cand) > limit:
+            result.append(cand)
+    return sorted(result)
+
+def ref_majorityElementStrict(nums):
+    if not nums:
+        return -1
+    candidate = None
+    count = 0
+    for num in nums:
+        if count == 0:
+            candidate = num
+            count = 1
+        elif num == candidate:
+            count += 1
+        else:
+            count -= 1
+    if nums.count(candidate) > len(nums) // 2:
+        return candidate
+    return -1
+
 GOLDEN_SOLVERS = {
     "twoSum": ref_twoSum,
     "containsDuplicate": ref_containsDuplicate,
@@ -2718,7 +2825,10 @@ GOLDEN_SOLVERS = {
     "canJump": ref_canJump,
     "singleNumber": ref_singleNumber,
     "findKthLargest": ref_findKthLargest,
-    "climbStairs": ref_climbStairs
+    "climbStairs": ref_climbStairs,
+    "majorityElementII": ref_majorityElementII,
+    "majorityElementK": ref_majorityElementK,
+    "majorityElementStrict": ref_majorityElementStrict
 }
 
 def generate_inputs(func_name, size_type):
@@ -2865,6 +2975,33 @@ def generate_inputs(func_name, size_type):
             return [1]
         else: # large
             return [35]
+    elif func_name == "majorityElementII" or func_name == "majorityElementStrict":
+        if size_type == "small":
+            return [[random.randint(1, 5) for _ in range(10)]]
+        elif size_type == "boundary":
+            return [[1]]
+        else: # large
+            nums = [random.randint(1, 10) for _ in range(1000)]
+            majority = random.randint(1, 10)
+            if func_name == "majorityElementStrict":
+                nums += [majority] * 1005
+            else:
+                nums += [majority] * 505
+            random.shuffle(nums)
+            return [nums]
+    elif func_name == "majorityElementK":
+        if size_type == "small":
+            return [[random.randint(1, 5) for _ in range(10)], 3]
+        elif size_type == "boundary":
+            return [[1], 2]
+        else: # large
+            nums = [random.randint(1, 15) for _ in range(1000)]
+            majority1 = random.randint(1, 15)
+            majority2 = (majority1 + 1) % 15
+            nums += [majority1] * 350
+            nums += [majority2] * 350
+            random.shuffle(nums)
+            return [nums, 4]
     return [[1, 2, 3]]
 
 def generate_10_cases_for_parent(func_name):

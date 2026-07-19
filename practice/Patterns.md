@@ -145,3 +145,62 @@ To stop memorizing code and start recognizing solutions, you must train your bra
     *   [Rotting Oranges](file:///home/vignesh/github/localleetcode/practice/problems.html?pattern=BFS)
     *   [Binary Tree Level Order Traversal](file:///home/vignesh/github/localleetcode/practice/problems.html?pattern=BFS)
     *   [Word Ladder](file:///home/vignesh/github/localleetcode/practice/problems.html?pattern=BFS)
+
+---
+
+## 6. Boyer-Moore Voting Algorithm
+*   **How to spot it**:
+    *   Find the element(s) with frequency strictly greater than a fraction of the array size (e.g. `> n/2`, `> n/3`, or `> n/k`).
+    *   The problem requires linear time $O(N)$ and constant space $O(1)$.
+*   **The Brain Hack**: Standard Boyer-Moore tracks one candidate and a counter. If the element matches the candidate, increment the counter; otherwise decrement. If the counter hits 0, choose a new candidate. If a majority element is not guaranteed to exist, a second pass is mandatory to verify the candidate's actual frequency.
+*   **Python Template (Standard with Verification)**:
+    ```python
+    def boyer_moore_strict(nums):
+        candidate = None
+        count = 0
+        for num in nums:
+            if count == 0:
+                candidate = num
+                count = 1
+            elif num == candidate:
+                count += 1
+            else:
+                count -= 1
+        
+        # Verification Pass
+        if nums.count(candidate) > len(nums) // 2:
+            return candidate
+        return -1
+    ```
+*   **Python Template (Generalized for > n/k)**:
+    ```python
+    def boyer_moore_k(nums, k):
+        counts = {}
+        for num in nums:
+            if num in counts:
+                counts[num] += 1
+            elif len(counts) < k - 1:
+                counts[num] = 1
+            else:
+                to_remove = []
+                for cand in list(counts.keys()):
+                    counts[cand] -= 1
+                    if counts[cand] == 0:
+                        to_remove.append(cand)
+                for cand in to_remove:
+                    del counts[cand]
+        
+        # Verification Pass
+        result = []
+        limit = len(nums) // k
+        for cand in counts:
+            if nums.count(cand) > limit:
+                result.append(cand)
+        return result
+    ```
+*   **Key Problems in Project**:
+    *   [Majority Element](file:///home/vignesh/github/localleetcode/practice/problems.html?pattern=Boyer-Moore)
+    *   [Majority Element II](file:///home/vignesh/github/localleetcode/practice/problems.html?pattern=Boyer-Moore)
+    *   [Majority Element III](file:///home/vignesh/github/localleetcode/practice/problems.html?pattern=Boyer-Moore)
+    *   [Majority Element (Strict)](file:///home/vignesh/github/localleetcode/practice/problems.html?pattern=Boyer-Moore)
+
